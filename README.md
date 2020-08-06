@@ -1,51 +1,39 @@
-# Super Mario 64 Port
+# Super Mario 64 DOS Port
 
-- This repo contains a full decompilation of Super Mario 64 (J), (U), and (E) with minor exceptions in the audio subsystem.
-- Naming and documentation of the source code and data structures are in progress.
-- Efforts to decompile the Shindou ROM steadily advance toward a matching build.
-- Beyond Nintendo 64, it can also target Linux and Windows natively.
+This is a novelty port of the sm64-port to DOS. Do not expect it to be playable.
 
-This repo does not include all assets necessary for compiling the game.
-A prior copy of the game is required to extract the assets.
+![Goddard](https://raw.githubusercontent.com/mkst/sm64-port/dos/media/screenshot_00.png)
 
-## Building native executables
+![In-game](https://raw.githubusercontent.com/mkst/sm64-port/dos/media/screenshot_01.png)
 
-### Linux
+## Building Instructions
 
-1. Install prerequisites (Ubuntu): `sudo apt install -y git build-essential pkg-config libusb-1.0-0-dev libsdl2-dev`.
-2. Clone the repo: `git clone https://github.com/sm64-port/sm64-port.git`, which will create a directory `sm64-port` and then **enter** it `cd sm64-port`.
-3. Place a Super Mario 64 ROM called `baserom.<VERSION>.z64` into the repository's root directory for asset extraction, where `VERSION` can be `us`, `jp`, or `eu`.
-4. Run `make` to build. Qualify the version through `make VERSION=<VERSION>`. Add `-j4` to improve build speed (hardware dependent based on the amount of CPU cores available).
-5. The executable binary will be located at `build/<VERSION>_pc/sm64.<VERSION>.f3dex2e`.
+### Docker
 
-### Windows
+1. Install Docker
+2. Build image: `docker build . -t sm64_dos`
+3. Run build: `docker run --rm --mount type=bind,source="$(pwd)",destination=/sm64 -ti sm64_dos make -j4 ENABLE_OPENGL_LEGACY=1 DISABLE_SKYBOX=1 DISABLE_AUDIO=1`
 
-1. Install and update MSYS2, following all the directions listed on https://www.msys2.org/.
-2. From the start menu, launch MSYS2 MinGW and install required packages depending on your machine (do **NOT** launch "MSYS2 MSYS"):
-  * 64-bit: Launch "MSYS2 MinGW 64-bit" and install: `pacman -S git make python3 mingw-w64-x86_64-gcc`
-  * 32-bit (will also work on 64-bit machines): Launch "MSYS2 MinGW 32-bit" and install: `pacman -S git make python3 mingw-w64-i686-gcc`
-  * Do **NOT** by mistake install the package called simply `gcc`.
-3. The MSYS2 terminal has a _current working directory_ that initially is `C:\msys64\home\<username>` (home directory). At the prompt, you will see the current working directory in yellow. `~` is an alias for the home directory. You can change the current working directory to `My Documents` by entering `cd /c/Users/<username>/Documents`.
-4. Clone the repo: `git clone https://github.com/sm64-port/sm64-port.git`, which will create a directory `sm64-port` and then **enter** it `cd sm64-port`.
-5. Place a *Super Mario 64* ROM called `baserom.<VERSION>.z64` into the repository's root directory for asset extraction, where `VERSION` can be `us`, `jp`, or `eu`.
-6. Run `make` to build. Qualify the version through `make VERSION=<VERSION>`. Add `-j4` to improve build speed (hardware dependent based on the amount of CPU cores available).
-7. The executable binary will be located at `build/<VERSION>_pc/sm64.<VERSION>.f3dex2e.exe` inside the repository.
+### Other
 
-#### Troubleshooting
+Consult the [Dockerfile](./Dockerfile) for required libraries and steps.
 
-1. If you get `make: gcc: command not found` or `make: gcc: No such file or directory` although the packages did successfully install, you probably launched the wrong MSYS2. Read the instructions again. The terminal prompt should contain "MINGW32" or "MINGW64" in purple text, and **NOT** "MSYS".
-2. If you get `Failed to open baserom.us.z64!` you failed to place the baserom in the repository. You can write `ls` to list the files in the current working directory. If you are in the `sm64-port` directory, make sure you see it here.
-3. If you get `make: *** No targets specified and no makefile found. Stop.`, you are not in the correct directory. Make sure the yellow text in the terminal ends with `sm64-port`. Use `cd <dir>` to enter the correct directory. If you write `ls` you should see all the project files, including `Makefile` if everything is correct.
-4. If you get any error, be sure MSYS2 packages are up to date by executing `pacman -Syu` and `pacman -Su`. If the MSYS2 window closes immediately after opening it, restart your computer.
-5. When you execute `gcc -v`, be sure you see `Target: i686-w64-mingw32` or `Target: x86_64-w64-mingw32`. If you see `Target: x86_64-pc-msys`, you either opened the wrong MSYS start menu entry or installed the incorrect gcc package.
+### Notes:
 
-### Debugging
+For *best* performance:
+ - Use `ENABLE_OPENGL_LEGACY=1` to enable the legacy OpenGL renderer
+ - Use `DISABLE_SKYBOX=1` to avoid drawing the skybox
+ - Use `DISABLE_AUDIO=1` to save your ears and some CPU cycles
 
-The code can be debugged using `gdb`. On Linux install the `gdb` package and execute `gdb <executable>`. On MSYS2 install by executing `pacman -S winpty gdb` and execute `winpty gdb <executable>`. The `winpty` program makes sure the keyboard works correctly in the terminal. Also consider changing the `-mwindows` compile flag to `-mconsole` to be able to see stdout/stderr as well as be able to press Ctrl+C to interrupt the program. In the Makefile, make sure you compile the sources using `-g` rather than `-O2` to include debugging symbols. See any online tutorial for how to use gdb.
+## Running
 
-## ROM building
+1. You'll need a copy of [CWSDPMI.EXE](https://sandmann.dotster.com/cwsdpmi/) alongside the executable.
+2. Either `cp build/us_dos/sm64.us.f3dex2e.exe .` or symlink `ln -s build/us_dos/sm64.us.f3dex2e.exe sm64.exe`
+3. Run with `dosbox sm64.exe` or try on some real hardware.
 
-It is possible to build N64 ROMs as well with this repository. See https://github.com/n64decomp/sm64 for instructions.
+## Controls
+
+Controls can be editted as per the PC port, tweak the `SM64CONF.TXT` which is created with defaults upon first run.
 
 ## Project Structure
 
@@ -80,11 +68,13 @@ sm64
 └── tools: build tools
 ```
 
+## Credits
+
+ - [fgsfdsfgs](https://github.com/fgsfdsfgs); audio, frameskip, dithering, more++
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to
 discuss what you would like to change.
-
-Run `clang-format` on your code to ensure it meets the project's coding standards.
 
 Official Discord: https://discord.gg/7bcNTPK

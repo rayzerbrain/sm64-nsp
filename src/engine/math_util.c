@@ -743,9 +743,11 @@ s16 atan2s(f32 y, f32 x) {
 /**
  * Compute the atan2 in radians by calling atan2s and converting the result.
  */
+#ifndef TARGET_DOS
 f32 atan2f(f32 y, f32 x) {
     return (f32) atan2s(y, x) * M_PI / 0x8000;
 }
+#endif
 
 #define CURVE_BEGIN_1 1
 #define CURVE_BEGIN_2 2

@@ -29,7 +29,9 @@ typedef s32 ptrdiff_t;
 #else
 #include <stddef.h>
 #include <stdint.h>
+#ifndef TARGET_DOS
 typedef ptrdiff_t ssize_t;
+#endif
 typedef int64_t s64;
 typedef uint64_t u64;
 #endif

@@ -125,11 +125,19 @@ void audio_dma_copy_async(uintptr_t devAddr, void *vAddr, size_t nbytes, OSMesgQ
  * Performs a partial asynchronous (normal priority) DMA copy. This is limited
  * to 0x1000 bytes transfer at once.
  */
+#ifndef TARGET_DOS
 void audio_dma_partial_copy_async(uintptr_t *devAddr, u8 **vAddr, ssize_t *remaining, OSMesgQueue *queue, OSIoMesg *mesg) {
+#else
+void audio_dma_partial_copy_async(uintptr_t *devAddr, u8 **vAddr, size_t *remaining, OSMesgQueue *queue, OSIoMesg *mesg) {
+#endif
 #ifdef VERSION_EU
     ssize_t transfer = (*remaining >= 0x1000 ? 0x1000 : *remaining);
 #else
+#ifndef TARGET_DOS
     ssize_t transfer = (*remaining < 0x1000 ? *remaining : 0x1000);
+#else
+    size_t transfer = (*remaining < 0x1000 ? *remaining : 0x1000);
+#endif
 #endif
     *remaining -= transfer;
     osInvalDCache(*vAddr, transfer);
@@ -181,7 +189,11 @@ void *dma_sample_data(uintptr_t devAddr, u32 size, s32 arg2, u8 *arg3) {
     u32 transfer;
     u32 i;
     u32 dmaIndex;
+#ifndef TARGET_DOS
     ssize_t bufferPos;
+#else
+    size_t bufferPos;
+#endif
     UNUSED u32 pad;
 
     if (arg2 != 0 || *arg3 >= sSampleDmaListSize1) {
@@ -1012,4 +1024,3 @@ void audio_init() {
     init_sequence_players();
     gAudioLoadLock = AUDIO_LOCK_NOT_LOADING;
 }
-

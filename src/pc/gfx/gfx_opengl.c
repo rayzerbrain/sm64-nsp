@@ -1,7 +1,8 @@
-#ifdef ENABLE_OPENGL
+#if defined(ENABLE_OPENGL) && !defined(ENABLE_OPENGL_LEGACY)
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #ifndef _LANGUAGE_C
 #define _LANGUAGE_C
@@ -20,9 +21,15 @@
 #define GL_GLEXT_PROTOTYPES 1
 #include "SDL_opengl.h"
 #else
+#ifdef TARGET_DOS
+#include <stdlib.h>
+#define GL_GLEXT_PROTOTYPES 1
+#include "mesa/osmesa.h"
+#else
 #include <SDL2/SDL.h>
 #define GL_GLEXT_PROTOTYPES 1
 #include <SDL2/SDL_opengles2.h>
+#endif
 #endif
 
 #include "gfx_cc.h"
@@ -48,6 +55,11 @@ static GLuint opengl_vbo;
 
 static uint32_t frame_count;
 static uint32_t current_height;
+
+#ifdef TARGET_DOS
+OSMesaContext ctx;
+extern uint32_t *osmesa_buffer;
+#endif
 
 static bool gfx_opengl_z_is_from_0_to_1(void) {
     return false;
@@ -475,11 +487,27 @@ static void gfx_opengl_init(void) {
 #if FOR_WINDOWS
     glewInit();
 #endif
-    
+#ifdef TARGET_DOS
+    int width = 320;
+    int height = 200;
+    osmesa_buffer = (void *)malloc(width * height * 4 * sizeof(GLubyte));
+    if (!osmesa_buffer)
+    {
+        fprintf(stderr, "osmesa_buffer malloc failed!\n");
+        abort();
+    }
+    ctx = OSMesaCreateContextExt(OSMESA_RGBA, 16, 0, 0, NULL);
+    if (!OSMesaMakeCurrent(ctx, osmesa_buffer, GL_UNSIGNED_BYTE, width, height))
+    {
+        fprintf(stderr, "OSMesaMakeCurrent failed!\n");
+        abort();
+    }
+    OSMesaPixelStore(OSMESA_Y_UP, GL_FALSE);
+#endif
     glGenBuffers(1, &opengl_vbo);
-    
+
     glBindBuffer(GL_ARRAY_BUFFER, opengl_vbo);
-    
+
     glDepthFunc(GL_LEQUAL);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }

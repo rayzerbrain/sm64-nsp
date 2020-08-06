@@ -24,6 +24,7 @@
 
 # Executables
 *.exe
+*.EXE
 *.out
 *.app
 *.hex
@@ -39,6 +40,7 @@
 
 # Text editor remnants
 *.swp
+*.SWP
 .vscode/*
 
 # General project-specific ignores
@@ -51,7 +53,9 @@ build/*
 *.map
 .assets-local.txt
 sm64_save_file.bin
+SM64_SAV.BIN
 sm64config.txt
+SM64CONF.TXT
 
 # Assets. Generally ignored, but ones with "custom" in the name are fine.
 /levels/**/*.png

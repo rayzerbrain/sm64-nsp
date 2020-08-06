@@ -272,7 +272,11 @@ struct SequencePlayer
     /*0x134, ?????*/ struct AudioBank *loadingBank;
 #endif
     /*0x138, 0x140*/ uintptr_t bankDmaCurrDevAddr;
+#ifndef TARGET_DOS
     /*0x13C, 0x144*/ ssize_t bankDmaRemaining;
+#else
+    /*0x13C, 0x144*/ size_t bankDmaRemaining;
+#endif
 }; // size = 0x140, 0x148 on EU
 
 struct AdsrSettings

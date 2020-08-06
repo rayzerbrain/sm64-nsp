@@ -1,6 +1,6 @@
 #include "../compat.h"
 
-#if !defined(__linux__) && !defined(__BSD__) && defined(ENABLE_OPENGL)
+#if !defined(__linux__) && !defined(__BSD__) && defined(ENABLE_OPENGL) && !defined(TARGET_DOS)
 
 #ifdef __MINGW32__
 #define FOR_WINDOWS 1
@@ -36,7 +36,7 @@ static bool (*on_key_up_callback)(int scancode);
 static void (*on_all_keys_up_callback)(void);
 
 const SDL_Scancode windows_scancode_table[] =
-{ 
+{
     /*	0						1							2							3							4						5							6							7 */
     /*	8						9							A							B							C						D							E							F */
     SDL_SCANCODE_UNKNOWN,		SDL_SCANCODE_ESCAPE,		SDL_SCANCODE_1,				SDL_SCANCODE_2,				SDL_SCANCODE_3,			SDL_SCANCODE_4,				SDL_SCANCODE_5,				SDL_SCANCODE_6,			/* 0 */

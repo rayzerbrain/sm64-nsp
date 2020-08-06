@@ -253,6 +253,7 @@ Vtx *make_skybox_rect(s32 tileIndex, s8 colorIndex) {
  * world space so that the tiles will rotate with the camera.
  */
 void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex) {
+#ifndef DISABLE_SKYBOX
     s32 row;
     s32 col;
 
@@ -268,6 +269,7 @@ void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex)
             gSPDisplayList((*dlist)++, dl_draw_quad_verts_0123);
         }
     }
+#endif
 }
 
 void *create_skybox_ortho_matrix(s8 player) {

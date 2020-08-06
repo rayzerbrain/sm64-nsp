@@ -48,7 +48,11 @@ extern s16 gTempoInternalToExternal;
 extern s8 gAudioUpdatesPerFrame; // = 4
 extern s8 gSoundMode;
 
+#ifndef TARGET_DOS
 void audio_dma_partial_copy_async(uintptr_t *devAddr, u8 **vAddr, ssize_t *remaining, OSMesgQueue *queue, OSIoMesg *mesg);
+#else
+void audio_dma_partial_copy_async(uintptr_t *devAddr, u8 **vAddr, size_t *remaining, OSMesgQueue *queue, OSIoMesg *mesg);
+#endif
 void decrease_sample_dma_ttls(void);
 void *dma_sample_data(uintptr_t devAddr, u32 size, s32 arg2, u8 *arg3);
 void init_sample_dma_buffers(s32 arg0);

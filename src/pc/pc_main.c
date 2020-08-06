@@ -1,5 +1,4 @@
 #include <stdlib.h>
-
 #ifdef TARGET_WEB
 #include <emscripten.h>
 #include <emscripten/html5.h>
@@ -14,11 +13,13 @@
 #include "gfx/gfx_opengl.h"
 #include "gfx/gfx_direct3d11.h"
 #include "gfx/gfx_direct3d12.h"
+#include "gfx/gfx_dos_api.h"
 #include "gfx/gfx_dxgi.h"
 #include "gfx/gfx_glx.h"
 #include "gfx/gfx_sdl.h"
 
 #include "audio/audio_api.h"
+#include "audio/audio_sb16.h"
 #include "audio/audio_wasapi.h"
 #include "audio/audio_pulse.h"
 #include "audio/audio_alsa.h"
@@ -80,21 +81,17 @@ void send_display_list(struct SPTask *spTask) {
 void produce_one_frame(void) {
     gfx_start_frame();
     game_loop_one_iteration();
-    
+
+#ifndef DISABLE_AUDIO
     int samples_left = audio_api->buffered();
     u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? SAMPLES_HIGH : SAMPLES_LOW;
-    //printf("Audio samples: %d %u\n", samples_left, num_audio_samples);
     s16 audio_buffer[SAMPLES_HIGH * 2 * 2];
     for (int i = 0; i < 2; i++) {
-        /*if (audio_cnt-- == 0) {
-            audio_cnt = 2;
-        }
-        u32 num_audio_samples = audio_cnt < 2 ? 528 : 544;*/
         create_next_audio_buffer(audio_buffer + i * (num_audio_samples * 2), num_audio_samples);
     }
-    //printf("Audio samples before submitting: %d\n", audio_api->buffered());
     audio_api->play((u8 *)audio_buffer, 2 * num_audio_samples * 4);
-    
+#endif
+
     gfx_end_frame();
 }
 
@@ -158,20 +155,17 @@ void main_func(void) {
 #elif defined(ENABLE_DX11)
     rendering_api = &gfx_direct3d11_api;
     wm_api = &gfx_dxgi_api;
-#elif defined(ENABLE_OPENGL)
+#elif defined(ENABLE_OPENGL) || defined(ENABLE_OPENGL_LEGACY)
     rendering_api = &gfx_opengl_api;
     #if defined(__linux__) || defined(__BSD__)
         wm_api = &gfx_glx;
+    #elif defined(TARGET_DOS)
+        wm_api = &gfx_dos_api;
     #else
         wm_api = &gfx_sdl;
     #endif
 #endif
 
-    gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
-    
-    wm_api->set_fullscreen_changed_callback(on_fullscreen_changed);
-    wm_api->set_keyboard_callbacks(keyboard_on_key_down, keyboard_on_key_up, keyboard_on_all_keys_up);
-    
 #if HAVE_WASAPI
     if (audio_api == NULL && audio_wasapi.init()) {
         audio_api = &audio_wasapi;
@@ -192,9 +186,19 @@ void main_func(void) {
         audio_api = &audio_sdl;
     }
 #endif
+#ifdef TARGET_DOS
+    if (audio_api == NULL && audio_sb.init()) {
+        audio_api = &audio_sb;
+    }
+#endif
     if (audio_api == NULL) {
         audio_api = &audio_null;
     }
+
+    gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
+
+    wm_api->set_fullscreen_changed_callback(on_fullscreen_changed);
+    wm_api->set_keyboard_callbacks(keyboard_on_key_down, keyboard_on_key_up, keyboard_on_all_keys_up);
 
     audio_init();
     sound_init();
