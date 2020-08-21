@@ -95,9 +95,53 @@ static size_t cur_buf_size = 0;
 static size_t cur_buf_num_tris = 0;
 static size_t cur_buf_stride = 0;
 static bool gl_blend = false;
+
 static bool gl_adv_fog = false;
+static bool gl_npot = false;
+static bool gl_multitexture = false;
 
 static const float c_white[] = { 1.f, 1.f, 1.f, 1.f };
+
+// from https://github.com/z2442/sm64-port
+
+static uint32_t scaled[64 * 64];
+
+static void resample_32bit(const uint32_t *in, const int inwidth, const int inheight, uint32_t *out, const int outwidth, const int outheight) {
+  int i, j;
+  const uint32_t *inrow;
+  uint32_t frac, fracstep;
+
+  fracstep = inwidth * 0x10000 / outwidth;
+  for (i = 0; i < outheight; i++, out += outwidth) {
+    inrow = in + inwidth * (i * inheight / outheight);
+    frac = fracstep >> 1;
+    for (j = 0; j < outwidth; j += 4) {
+      out[j] = inrow[frac >> 16];
+      frac += fracstep;
+      out[j + 1] = inrow[frac >> 16];
+      frac += fracstep;
+      out[j + 2] = inrow[frac >> 16];
+      frac += fracstep;
+      out[j + 3] = inrow[frac >> 16];
+      frac += fracstep;
+    }
+  }
+}
+
+static inline uint32_t next_pot(uint32_t v) {
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
+}
+
+static inline uint32_t is_pot(const uint32_t v) {
+    return (v & (v - 1)) == 0;
+}
 
 static bool gfx_opengl_z_is_from_0_to_1(void) {
     return false;
@@ -283,6 +327,18 @@ static void gfx_opengl_select_texture(int tile, GLuint texture_id) {
 }
 
 static void gfx_opengl_upload_texture(const uint8_t *rgba32_buf, int width, int height) {
+    if (!gl_npot) {
+        // we don't support non power of two textures, scale to next power of two if necessary
+        if (!is_pot(width) || !is_pot(height)) {
+            const int pwidth = next_pot(width);
+            const int pheight = next_pot(height);
+            resample_32bit((const uint32_t *)rgba32_buf, width, height, scaled, pwidth, pheight);
+            rgba32_buf = (const uint8_t *)scaled;
+            width = pwidth;
+            height = pheight;
+        }
+    }
+
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba32_buf);
 }
 
@@ -440,9 +496,15 @@ static void gfx_opengl_init(void) {
         abort();
     }
 
-    gl_adv_fog = false;
+    // check if we support non power of two textures
+    gl_npot = gl_check_ext("GL_ARB_texture_non_power_of_two");
+
+    // check if we support multitexturing
+    gl_multitexture = vmajor > 1 || vminor > 3 || gl_check_ext("GL_ARB_multitexture");
 
     // check whether we can use advanced fog shit
+    gl_adv_fog = false;
+
     const bool fog_ext =
         vmajor > 1 || vminor > 3 ||
         gl_check_ext("GL_EXT_fog_coord") ||
