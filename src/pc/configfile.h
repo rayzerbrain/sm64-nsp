@@ -2,6 +2,9 @@
 #define CONFIGFILE_H
 
 extern bool         configFullscreen;
+extern bool         configDrawSky;
+extern bool         configFiltering;
+extern bool         configEnableSound;
 extern unsigned int configKeyA;
 extern unsigned int configKeyB;
 extern unsigned int configKeyStart;

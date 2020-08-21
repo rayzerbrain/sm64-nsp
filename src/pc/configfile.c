@@ -30,6 +30,9 @@ struct ConfigOption {
  *Config options and default values
  */
 bool configFullscreen            = false;
+bool configDrawSky               = true;
+bool configFiltering             = true;
+bool configEnableSound           = false;
 // Keyboard mappings (scancode values)
 unsigned int configKeyA          = 0x26;
 unsigned int configKeyB          = 0x33;
@@ -47,20 +50,23 @@ unsigned int configKeyStickRight = 0x20;
 
 
 static const struct ConfigOption options[] = {
-    {.name = "fullscreen",     .type = CONFIG_TYPE_BOOL, .boolValue = &configFullscreen},
-    {.name = "key_a",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
-    {.name = "key_b",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
-    {.name = "key_start",      .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},
-    {.name = "key_r",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyR},
-    {.name = "key_z",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyZ},
-    {.name = "key_cup",        .type = CONFIG_TYPE_UINT, .uintValue = &configKeyCUp},
-    {.name = "key_cdown",      .type = CONFIG_TYPE_UINT, .uintValue = &configKeyCDown},
-    {.name = "key_cleft",      .type = CONFIG_TYPE_UINT, .uintValue = &configKeyCLeft},
-    {.name = "key_cright",     .type = CONFIG_TYPE_UINT, .uintValue = &configKeyCRight},
-    {.name = "key_stickup",    .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStickUp},
-    {.name = "key_stickdown",  .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStickDown},
-    {.name = "key_stickleft",  .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStickLeft},
-    {.name = "key_stickright", .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStickRight},
+    {.name = "fullscreen",        .type = CONFIG_TYPE_BOOL, .boolValue = &configFullscreen},
+    {.name = "draw_sky",          .type = CONFIG_TYPE_BOOL, .boolValue = &configDrawSky},
+    {.name = "texture_filtering", .type = CONFIG_TYPE_BOOL, .boolValue = &configFiltering},
+    {.name = "enable_sound",      .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableSound},
+    {.name = "key_a",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
+    {.name = "key_b",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
+    {.name = "key_start",         .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},
+    {.name = "key_r",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyR},
+    {.name = "key_z",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyZ},
+    {.name = "key_cup",           .type = CONFIG_TYPE_UINT, .uintValue = &configKeyCUp},
+    {.name = "key_cdown",         .type = CONFIG_TYPE_UINT, .uintValue = &configKeyCDown},
+    {.name = "key_cleft",         .type = CONFIG_TYPE_UINT, .uintValue = &configKeyCLeft},
+    {.name = "key_cright",        .type = CONFIG_TYPE_UINT, .uintValue = &configKeyCRight},
+    {.name = "key_stickup",       .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStickUp},
+    {.name = "key_stickdown",     .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStickDown},
+    {.name = "key_stickleft",     .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStickLeft},
+    {.name = "key_stickright",    .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStickRight},
 };
 
 // Reads an entire line from a file (excluding the newline character) and returns an allocated string

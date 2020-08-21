@@ -14,7 +14,7 @@ This is a novelty port of the sm64-port to DOS. Do not expect it to be playable.
 
 1. Install Docker
 2. Build image: `docker build . -t sm64_dos`
-3. Run build: `docker run --rm --mount type=bind,source="$(pwd)",destination=/sm64 -ti sm64_dos make -j4 ENABLE_OPENGL_LEGACY=1 DISABLE_SKYBOX=1 DISABLE_AUDIO=1`
+3. Run build: `docker run --rm --mount type=bind,source="$(pwd)",destination=/sm64 -ti sm64_dos make -j4 ENABLE_OPENGL_LEGACY=1`
 
 ### Other
 
@@ -24,9 +24,10 @@ Consult the [Dockerfile](./Dockerfile) for required libraries and steps.
 
 For *best* performance:
  - Use `ENABLE_OPENGL_LEGACY=1` to enable the legacy OpenGL renderer
- - Use `DISABLE_SKYBOX=1` to avoid drawing the skybox (saves a lot of cycles in software mode)
- - Use `DISABLE_AUDIO=1` to save your ears and some CPU cycles
  - Use `DOS_GL=dmesa` to enable 3Dfx-backed OpenGL instead of software-backed (this only works with legacy OpenGL!)
+ - Set `draw_sky` to `false` in `SM64CONF.TXT` to avoid drawing the skybox (saves a lot of cycles in software mode)
+ - Set `texture_filtering` to `false` in `SM64CONF.TXT` to disable linear filtering (saves a lot of cycles in software mode)
+ - Set `enable_sound` to `false` in `SM64CONF.TXT` to disable sound (saves your ears from an untimely death and some cycles too)
 
 ### 3Dfx mode:
 

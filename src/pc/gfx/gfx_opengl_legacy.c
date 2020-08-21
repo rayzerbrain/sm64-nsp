@@ -348,12 +348,7 @@ static inline GLenum gfx_cm_to_opengl(uint32_t val) {
 }
 
 static void gfx_opengl_set_sampler_parameters(int tile, bool linear_filter, uint32_t cms, uint32_t cmt) {
-    const GLenum filter =
-#if defined(TARGET_DOS) && !defined(ENABLE_DMESA)
-        GL_NEAREST;
-#else
-        linear_filter ? GL_LINEAR : GL_NEAREST;
-#endif
+    const GLenum filter = linear_filter ? GL_LINEAR : GL_NEAREST;
 
     const GLenum wrap_s = gfx_cm_to_opengl(cms);
     const GLenum wrap_t = gfx_cm_to_opengl(cmt);

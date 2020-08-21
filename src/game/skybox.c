@@ -11,7 +11,10 @@
 #include "sm64.h"
 
 #ifndef TARGET_N64
-#define BETTER_SKYBOX_POSITION_PRECISION
+# include "pc/configfile.h"
+# ifndef TARGET_DOS
+#  define BETTER_SKYBOX_POSITION_PRECISION
+# endif
 #endif
 
 /**
@@ -253,7 +256,6 @@ Vtx *make_skybox_rect(s32 tileIndex, s8 colorIndex) {
  * world space so that the tiles will rotate with the camera.
  */
 void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex) {
-#ifndef DISABLE_SKYBOX
     s32 row;
     s32 col;
 
@@ -269,7 +271,6 @@ void draw_skybox_tile_grid(Gfx **dlist, s8 background, s8 player, s8 colorIndex)
             gSPDisplayList((*dlist)++, dl_draw_quad_verts_0123);
         }
     }
-#endif
 }
 
 void *create_skybox_ortho_matrix(s8 player) {
@@ -305,7 +306,7 @@ Gfx *init_skybox_display_list(s8 player, s8 background, s8 colorIndex) {
     void *skybox = alloc_display_list(dlCommandCount * sizeof(Gfx));
     Gfx *dlist = skybox;
 
-    if (skybox == NULL) {
+    if (!configDrawSky || skybox == NULL) {
         return NULL;
     } else {
         Mtx *ortho = create_skybox_ortho_matrix(player);

@@ -82,15 +82,15 @@ void produce_one_frame(void) {
     gfx_start_frame();
     game_loop_one_iteration();
 
-#ifndef DISABLE_AUDIO
-    int samples_left = audio_api->buffered();
-    u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? SAMPLES_HIGH : SAMPLES_LOW;
-    s16 audio_buffer[SAMPLES_HIGH * 2 * 2];
-    for (int i = 0; i < 2; i++) {
-        create_next_audio_buffer(audio_buffer + i * (num_audio_samples * 2), num_audio_samples);
+    if (configEnableSound) {
+        int samples_left = audio_api->buffered();
+        u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? SAMPLES_HIGH : SAMPLES_LOW;
+        s16 audio_buffer[SAMPLES_HIGH * 2 * 2];
+        for (int i = 0; i < 2; i++) {
+            create_next_audio_buffer(audio_buffer + i * (num_audio_samples * 2), num_audio_samples);
+        }
+        audio_api->play((u8 *)audio_buffer, 2 * num_audio_samples * 4);
     }
-    audio_api->play((u8 *)audio_buffer, 2 * num_audio_samples * 4);
-#endif
 
     gfx_end_frame();
 }
@@ -168,31 +168,34 @@ void main_func(void) {
 
     gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
 
+    if (configEnableSound) {
 #if HAVE_WASAPI
-    if (audio_api == NULL && audio_wasapi.init()) {
-        audio_api = &audio_wasapi;
-    }
+        if (audio_api == NULL && audio_wasapi.init()) {
+            audio_api = &audio_wasapi;
+        }
 #endif
 #if HAVE_PULSE_AUDIO
-    if (audio_api == NULL && audio_pulse.init()) {
-        audio_api = &audio_pulse;
-    }
+        if (audio_api == NULL && audio_pulse.init()) {
+            audio_api = &audio_pulse;
+        }
 #endif
 #if HAVE_ALSA
-    if (audio_api == NULL && audio_alsa.init()) {
-        audio_api = &audio_alsa;
-    }
+        if (audio_api == NULL && audio_alsa.init()) {
+            audio_api = &audio_alsa;
+        }
 #endif
 #ifdef TARGET_WEB
-    if (audio_api == NULL && audio_sdl.init()) {
-        audio_api = &audio_sdl;
-    }
+        if (audio_api == NULL && audio_sdl.init()) {
+            audio_api = &audio_sdl;
+        }
 #endif
 #ifdef TARGET_DOS
-    if (audio_api == NULL && audio_sb.init()) {
-        audio_api = &audio_sb;
-    }
+        if (audio_api == NULL && audio_sb.init()) {
+            audio_api = &audio_sb;
+        }
 #endif
+    }
+
     if (audio_api == NULL) {
         audio_api = &audio_null;
     }

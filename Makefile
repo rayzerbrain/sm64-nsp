@@ -27,10 +27,6 @@ TARGET_DOS ?= 1
 COMPILER ?= ido
 # Legacy OGL
 ENABLE_OPENGL_LEGACY ?= 0
-# Disable audio?
-DISABLE_AUDIO ?= 0
-# Disable skybox
-DISABLE_SKYBOX ?= 0
 # Pick GL backend for DOS: osmesa, dmesa
 DOS_GL := osmesa
 
@@ -496,14 +492,6 @@ ifeq ($(TARGET_DOS),1)
     PLATFORM_CFLAGS += -Iinclude/glide3 -DENABLE_DMESA
     PLATFORM_LDFLAGS += -Llib/glide3 -lglide3i
   endif
-endif
-
-ifeq ($(DISABLE_AUDIO),1)
-	PLATFORM_CFLAGS += -DDISABLE_AUDIO
-endif
-
-ifeq ($(DISABLE_SKYBOX),1)
-	PLATFORM_CFLAGS += -DDISABLE_SKYBOX
 endif
 
 PLATFORM_CFLAGS += -DNO_SEGMENTED_MEMORY
