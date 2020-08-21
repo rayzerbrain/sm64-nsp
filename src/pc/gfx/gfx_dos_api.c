@@ -18,6 +18,45 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <stdarg.h>
+
+#ifdef ENABLE_DMESA
+
+#define SCREEN_WIDTH  640
+#define SCREEN_HEIGHT 480
+
+#include <GL/gl.h>
+#include <GL/dmesa.h>
+
+static DMesaVisual dv;
+static DMesaContext dc;
+static DMesaBuffer db;
+
+static void gfx_dos_init_impl(void) {
+    dv = DMesaCreateVisual(SCREEN_WIDTH, SCREEN_HEIGHT, 16, 60, 1, 1, 0, 16, 0, 0);
+    if (!dv) {
+        printf("DMesaCreateVisual failed\n");
+        abort();
+    }
+
+    dc = DMesaCreateContext(dv, NULL);
+    if (!dc) {
+        printf("DMesaCreateContext failed\n");
+        abort();
+    }
+
+    db = DMesaCreateBuffer(dv, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    if (!db) {
+        printf("DMesaCreateBuffer failed\n");
+        abort();
+    }
+
+    DMesaMakeCurrent(dc, db);
+}
+
+#else // ENABLE_FXMESA
+
+#include <osmesa.h>
 
 #define VIDEO_INT           0x10      /* the BIOS video interrupt. */
 #define SET_MODE            0x00      /* BIOS func to set the video mode. */
@@ -39,22 +78,12 @@
 
 #define VGA_BASE 0xA0000
 
-#define FRAMETIME 33
-#define FRAMESKIP 33
-
 #define umin(a, b) (((a) < (b)) ? (a) : (b))
 
+OSMesaContext ctx;
 uint32_t *osmesa_buffer; // 320x200x4 bytes (RGBA)
 static uint8_t rgbconv[3][256][256];
 static uint8_t dit_kernel[8][8];
-static bool do_render = true;
-static uint32_t last = 0;
-
-static inline unsigned long get_msec(void) {
-    static struct timeval tval;
-    gettimeofday(&tval, NULL);
-    return tval.tv_sec * 1000 + tval.tv_usec / 1000;
-}
 
 static void set_mode_13(void) {
     union REGS regs;
@@ -63,7 +92,7 @@ static void set_mode_13(void) {
     int86(VIDEO_INT, &regs, &regs);
 }
 
-static void gfx_dos_init_tables(void) {
+static void gfx_dos_init_impl(void) {
     // create Bayer 8x8 dithering matrix
     for (unsigned y = 0; y < 8; ++y)
         for (unsigned x = 0; x < 8; ++x)
@@ -86,6 +115,9 @@ static void gfx_dos_init_tables(void) {
         }
     }
 
+    // VGA 320x200x256
+    set_mode_13();
+
     // set up regular palette as configured above;
     // however, bias the colors towards darker ones in an exponential curve
     outportb(PAL_LOAD, 0);
@@ -94,6 +126,36 @@ static void gfx_dos_init_tables(void) {
         outportb(PAL_COLOR, pow(((color / (PAL_BBITS            )) % PAL_GBITS) * 1.0 / (PAL_GBITS-1), PAL_GAMMA) * 63);
         outportb(PAL_COLOR, pow(((color                          ) % PAL_BBITS) * 1.0 / (PAL_BBITS-1), PAL_GAMMA) * 63);
     }
+
+    int width = 320;
+    int height = 200;
+    osmesa_buffer = (void *)malloc(width * height * 4 * sizeof(GLubyte));
+    if (!osmesa_buffer)
+    {
+        fprintf(stderr, "osmesa_buffer malloc failed!\n");
+        abort();
+    }
+    ctx = OSMesaCreateContextExt(OSMESA_RGBA, 16, 0, 0, NULL);
+    if (!OSMesaMakeCurrent(ctx, osmesa_buffer, GL_UNSIGNED_BYTE, width, height))
+    {
+        fprintf(stderr, "OSMesaMakeCurrent failed!\n");
+        abort();
+    }
+    OSMesaPixelStore(OSMESA_Y_UP, GL_FALSE);
+}
+
+#endif // ENABLE_FXMESA
+
+#define FRAMETIME 33
+#define FRAMESKIP 33
+
+static bool do_render = true;
+static uint32_t last = 0;
+
+static inline unsigned long get_msec(void) {
+    static struct timeval tval;
+    gettimeofday(&tval, NULL);
+    return tval.tv_sec * 1000 + tval.tv_usec / 1000;
 }
 
 static void gfx_dos_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen)
@@ -104,8 +166,7 @@ static void gfx_dos_init(UNUSED const char *game_name, UNUSED bool start_in_full
       abort();
     }
 
-    set_mode_13();
-    gfx_dos_init_tables();
+    gfx_dos_init_impl();
 
     last = get_msec();
 }
@@ -155,6 +216,9 @@ static bool gfx_dos_start_frame(void)
 }
 
 static void gfx_dos_swap_buffers_begin(void) {
+#ifdef ENABLE_DMESA
+    DMesaSwapBuffers(db);
+#else
     if (osmesa_buffer != NULL) {
         _farsetsel(_dos_ds);
 
@@ -170,6 +234,7 @@ static void gfx_dos_swap_buffers_begin(void) {
             }
         }
     }
+#endif
 }
 
 static void gfx_dos_swap_buffers_end(void)

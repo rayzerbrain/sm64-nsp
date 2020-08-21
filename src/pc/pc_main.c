@@ -166,6 +166,8 @@ void main_func(void) {
     #endif
 #endif
 
+    gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
+
 #if HAVE_WASAPI
     if (audio_api == NULL && audio_wasapi.init()) {
         audio_api = &audio_wasapi;
@@ -194,8 +196,6 @@ void main_func(void) {
     if (audio_api == NULL) {
         audio_api = &audio_null;
     }
-
-    gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
 
     wm_api->set_fullscreen_changed_callback(on_fullscreen_changed);
     wm_api->set_keyboard_callbacks(keyboard_on_key_down, keyboard_on_key_up, keyboard_on_all_keys_up);
