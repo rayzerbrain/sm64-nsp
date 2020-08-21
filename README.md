@@ -2,9 +2,11 @@
 
 This is a novelty port of the sm64-port to DOS. Do not expect it to be playable.
 
-![Goddard](https://raw.githubusercontent.com/mkst/sm64-port/dos/media/screenshot_00.png)
+![Goddard](https://raw.githubusercontent.com/fgsfdsfgs/sm64-port/dos/media/screenshot_00.png)
 
-![In-game](https://raw.githubusercontent.com/mkst/sm64-port/dos/media/screenshot_01.png)
+![In-game](https://raw.githubusercontent.com/fgsfdsfgs/sm64-port/dos/media/screenshot_01.png)
+
+![3Dfx in-game](https://raw.githubusercontent.com/fgsfdsfgs/sm64-port/dos/media/screenshot_02.png)
 
 ## Building Instructions
 
@@ -22,17 +24,17 @@ Consult the [Dockerfile](./Dockerfile) for required libraries and steps.
 
 For *best* performance:
  - Use `ENABLE_OPENGL_LEGACY=1` to enable the legacy OpenGL renderer
- - Use `DISABLE_SKYBOX=1` to avoid drawing the skybox
+ - Use `DISABLE_SKYBOX=1` to avoid drawing the skybox (saves a lot of cycles in software mode)
  - Use `DISABLE_AUDIO=1` to save your ears and some CPU cycles
  - Use `DOS_GL=dmesa` to enable 3Dfx-backed OpenGL instead of software-backed (this only works with legacy OpenGL!)
 
 ### 3Dfx mode:
 
-When `DOS_GL` is set to `dmesa`, the game will render using FXMesa, which is a Mesa driver that uses 3Dfx for rendering.
+When `DOS_GL` is set to `dmesa`, the game will render using FXMesa, which uses 3Dfx Glide for rendering.
 That means you will need a 3Dfx card (Voodoo II and above recommended, but will run on a Voodoo I probably) and appropriate
 drivers to run it.
 
-The drivers can be obtained from this repository (see [lib/glide3/README.md](lib/glide3/README.md)). Put the appropriate
+The drivers can be obtained from this repository (see [this file](lib/glide3/drivers/README.md)). Put the appropriate
 `glide3x.dxe` file next to the EXE.
 
 When running Windows 9x, you will have to reboot into DOS mode before running the game for this to work.
@@ -47,7 +49,7 @@ dosbox-x and PCem can emulate Voodoo cards for testing purposes.
 
 ## Controls
 
-Controls can be editted as per the PC port, tweak the `SM64CONF.TXT` which is created with defaults upon first run.
+Controls can be edited as per the PC port, tweak the `SM64CONF.TXT` which is created with defaults upon first run.
 
 ## Project Structure
 
@@ -66,7 +68,7 @@ sm64
 ├── enhancements: example source modifications
 ├── include: header files
 ├── levels: level scripts, geo layout, and display lists
-├── lib: SDK library code
+├── lib: SDK library code and third party libraries
 ├── rsp: audio and Fast3D RSP assembly code
 ├── sound: sequences, sound samples, and sound banks
 ├── src: C source code for game
