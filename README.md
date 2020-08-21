@@ -86,7 +86,9 @@ sm64
 
 ## Credits
 
- - [fgsfdsfgs](https://github.com/fgsfdsfgs); audio, frameskip, dithering, more++
+ - [mkst](https://github.com/mkst): initial DOS port
+ - [Bisqwit](http://bisqwit.iki.fi/): DJGPP OSMesa binaries, dithering code
+ - [Q2DOS project](https://bitbucket.org/neozeed/q2dos/src/master/): FXMesa/DMesa binaries and code
 
 ## Contributing
 
