@@ -57,20 +57,6 @@ static PFNMGLFOGCOORDPOINTERPROC mglFogCoordPointer = NULL;
 #include "gfx_cc.h"
 #include "macros.h"
 
-enum MixFlags {
-    SH_MF_OVERRIDE_ALPHA = 1,
-
-    SH_MF_MULTIPLY = 2,
-    SH_MF_MIX = 4,
-    SH_MF_SINGLE = 8,
-
-    SH_MF_MULTIPLY_ALPHA = 16,
-    SH_MF_MIX_ALPHA = 32,
-    SH_MF_SINGLE_ALPHA = 64,
-
-    SH_MF_INPUT_ALPHA = 128,
-};
-
 enum MixType {
     SH_MT_NONE,
     SH_MT_TEXTURE,
@@ -83,15 +69,25 @@ enum MixType {
 struct ShaderProgram {
     bool enabled;
     uint32_t shader_id;
+    struct CCFeatures cc;
     enum MixType mix;
-    uint32_t mix_flags;
     bool texture_used[2];
     int num_inputs;
+};
+
+struct SamplerState {
+    GLenum min_filter;
+    GLenum mag_filter;
+    GLenum wrap_s;
+    GLenum wrap_t;
+    GLuint tex;
 };
 
 static struct ShaderProgram shader_program_pool[64];
 static uint8_t shader_program_pool_size;
 static struct ShaderProgram *cur_shader = NULL;
+
+static struct SamplerState tmu_state[2];
 
 static const float *cur_buf = NULL;
 static const float *cur_fog_ofs = NULL;
@@ -107,11 +103,11 @@ static bool gfx_opengl_z_is_from_0_to_1(void) {
     return false;
 }
 
-static inline GLenum texenv_set_color(struct ShaderProgram *prg) {
+static inline GLenum texenv_set_color(UNUSED struct ShaderProgram *prg) {
     return GL_REPLACE;
 }
 
-static inline GLenum texenv_set_texture(struct ShaderProgram *prg) {
+static inline GLenum texenv_set_texture(UNUSED struct ShaderProgram *prg) {
     return GL_REPLACE;
 }
 
@@ -140,7 +136,7 @@ static inline GLenum texenv_set_texture_color(struct ShaderProgram *prg) {
     return mode;
 }
 
-static inline GLenum texenv_set_texture_texture(struct ShaderProgram *prg) {
+static inline GLenum texenv_set_texture_texture(UNUSED struct ShaderProgram *prg) {
     return GL_MODULATE;
 }
 
@@ -239,6 +235,7 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(uint32_t shad
     struct ShaderProgram *prg = &shader_program_pool[shader_program_pool_size++];
 
     prg->shader_id = shader_id;
+    prg->cc = ccf;
     prg->num_inputs = ccf.num_inputs;
     prg->texture_used[0] = ccf.used_textures[0];
     prg->texture_used[1] = ccf.used_textures[1];
@@ -253,17 +250,6 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(uint32_t shad
         prg->mix = SH_MT_COLOR_COLOR;
     else if (ccf.num_inputs)
         prg->mix = SH_MT_COLOR;
-
-    if (ccf.do_single[0]) prg->mix_flags |= SH_MF_SINGLE;
-    if (ccf.do_multiply[0]) prg->mix_flags |= SH_MF_MULTIPLY;
-    if (ccf.do_mix[0]) prg->mix_flags |= SH_MF_MIX;
-    if (ccf.do_single[1]) prg->mix_flags |= SH_MF_SINGLE_ALPHA;
-    if (ccf.do_multiply[1]) prg->mix_flags |= SH_MF_MULTIPLY_ALPHA;
-    if (ccf.do_mix[1]) prg->mix_flags |= SH_MF_MIX_ALPHA;
-    if (ccf.c[1][3] < SHADER_TEXEL0) prg->mix_flags |= SH_MF_INPUT_ALPHA;
-
-    if (!ccf.color_alpha_same && (shader_id & SHADER_OPT_ALPHA))
-        prg->mix_flags |= SH_MF_OVERRIDE_ALPHA;
 
     prg->enabled = false;
 
@@ -292,6 +278,7 @@ static GLuint gfx_opengl_new_texture(void) {
 }
 
 static void gfx_opengl_select_texture(int tile, GLuint texture_id) {
+    tmu_state[tile].tex = texture_id; // remember this for multitexturing later
     glBindTexture(GL_TEXTURE_2D, texture_id);
 }
 
@@ -299,7 +286,7 @@ static void gfx_opengl_upload_texture(const uint8_t *rgba32_buf, int width, int 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba32_buf);
 }
 
-static uint32_t gfx_cm_to_opengl(uint32_t val) {
+static inline GLenum gfx_cm_to_opengl(uint32_t val) {
     if (val & G_TX_CLAMP) return GL_CLAMP_TO_EDGE;
     return (val & G_TX_MIRROR) ? GL_MIRRORED_REPEAT : GL_REPEAT;
 }
@@ -311,11 +298,22 @@ static void gfx_opengl_set_sampler_parameters(int tile, bool linear_filter, uint
 #else
         linear_filter ? GL_LINEAR : GL_NEAREST;
 #endif
-    glActiveTexture(GL_TEXTURE0 + tile);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gfx_cm_to_opengl(cms));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gfx_cm_to_opengl(cmt));
+
+    const GLenum wrap_s = gfx_cm_to_opengl(cms);
+    const GLenum wrap_t = gfx_cm_to_opengl(cmt);
+
+    tmu_state[tile].min_filter = filter;
+    tmu_state[tile].mag_filter = filter;
+    tmu_state[tile].wrap_s = wrap_s;
+    tmu_state[tile].wrap_t = wrap_t;
+
+    if (!tile) {
+        // set state for the first texture right away
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
+    }
 }
 
 static void gfx_opengl_set_depth_test(bool depth_test) {
