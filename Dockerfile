@@ -13,10 +13,6 @@ RUN wget https://github.com/andrewwutw/build-djgpp/releases/download/v3.0/djgpp-
   tar xjf djgpp-linux64-gcc930.tar.bz2 && \
   rm djgpp-linux64-gcc930.tar.bz2
 
-RUN wget http://bisqwit.iki.fi/jutut/kuvat/programming_examples/djgpp_mesa.zip && \
-  echo 'e752ac3e63f24dc3d8048adf6ccde30f0abc13ae5469f528629b66eb5bdf63a4  djgpp_mesa.zip' | sha256sum djgpp_mesa.zip && \
-  unzip -p djgpp_mesa.zip libOSMesa.a > /lib/libOSMesa.a
-
 RUN mkdir /sm64
 WORKDIR /sm64
 ENV PATH="/sm64/tools:/djgpp/bin:${PATH}"

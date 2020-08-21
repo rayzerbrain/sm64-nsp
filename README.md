@@ -24,6 +24,20 @@ For *best* performance:
  - Use `ENABLE_OPENGL_LEGACY=1` to enable the legacy OpenGL renderer
  - Use `DISABLE_SKYBOX=1` to avoid drawing the skybox
  - Use `DISABLE_AUDIO=1` to save your ears and some CPU cycles
+ - Use `DOS_GL=dmesa` to enable 3Dfx-backed OpenGL instead of software-backed (this only works with legacy OpenGL!)
+
+### 3Dfx mode:
+
+When `DOS_GL` is set to `dmesa`, the game will render using FXMesa, which is a Mesa driver that uses 3Dfx for rendering.
+That means you will need a 3Dfx card (Voodoo II and above recommended, but will run on a Voodoo I probably) and appropriate
+drivers to run it.
+
+The drivers can be obtained from this repository (see [lib/glide3/README.md](lib/glide3/README.md)). Put the appropriate
+`glide3x.dxe` file next to the EXE.
+
+When running Windows 9x, you will have to reboot into DOS mode before running the game for this to work.
+
+dosbox-x and PCem can emulate Voodoo cards for testing purposes.
 
 ## Running
 
