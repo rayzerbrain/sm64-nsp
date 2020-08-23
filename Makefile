@@ -245,7 +245,7 @@ else
   ASM_DIRS :=
 endif
 ifeq ($(TARGET_DOS),1)
-  SRC_DIRS += src/pc/controller/inthandlers100 lib/glide3
+  SRC_DIRS += lib/glide3
 endif
 BIN_DIRS := bin bin/$(VERSION)
 
@@ -486,8 +486,8 @@ ifeq ($(TARGET_WEB),1)
   PLATFORM_LDFLAGS := -lm -no-pie -s TOTAL_MEMORY=20MB -g4 --source-map-base http://localhost:8080/ -s "EXTRA_EXPORTED_RUNTIME_METHODS=['callMain']"
 endif
 ifeq ($(TARGET_DOS),1)
-  PLATFORM_CFLAGS  := -DTARGET_DOS -std=gnu99 -nostdlib -m32 -march=i586 -mtune=pentium -ffreestanding -Iinclude/$(DOS_GL)
-  PLATFORM_LDFLAGS := -lm -no-pie -Llib/$(DOS_GL) -lgl
+  PLATFORM_CFLAGS  := -DTARGET_DOS -std=gnu99 -nostdlib -m32 -march=i586 -mtune=pentium -ffreestanding -fgnu89-inline -Iinclude/$(DOS_GL)
+  PLATFORM_LDFLAGS := -lm -no-pie -Llib/$(DOS_GL) -lgl -Llib/allegro -lalleg
   ifeq ($(DOS_GL),dmesa)
     PLATFORM_CFLAGS += -Iinclude/glide3 -DENABLE_DMESA
     PLATFORM_LDFLAGS += -Llib/glide3 -lglide3i

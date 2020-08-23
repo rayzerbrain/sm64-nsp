@@ -34,19 +34,19 @@ bool configDrawSky               = true;
 bool configFiltering             = true;
 bool configEnableSound           = false;
 // Keyboard mappings (scancode values)
-unsigned int configKeyA          = 0x26;
-unsigned int configKeyB          = 0x33;
-unsigned int configKeyStart      = 0x39;
-unsigned int configKeyR          = 0x36;
-unsigned int configKeyZ          = 0x25;
-unsigned int configKeyCUp        = 0x148;
-unsigned int configKeyCDown      = 0x150;
-unsigned int configKeyCLeft      = 0x14B;
-unsigned int configKeyCRight     = 0x14D;
-unsigned int configKeyStickUp    = 0x11;
-unsigned int configKeyStickDown  = 0x1F;
-unsigned int configKeyStickLeft  = 0x1E;
-unsigned int configKeyStickRight = 0x20;
+unsigned int configKeyA          = 12;
+unsigned int configKeyB          = 72;
+unsigned int configKeyStart      = 75;
+unsigned int configKeyR          = 116;
+unsigned int configKeyZ          = 11;
+unsigned int configKeyCUp        = 84;
+unsigned int configKeyCDown      = 85;
+unsigned int configKeyCLeft      = 82;
+unsigned int configKeyCRight     = 83;
+unsigned int configKeyStickUp    = 23;
+unsigned int configKeyStickDown  = 19;
+unsigned int configKeyStickLeft  =  1;
+unsigned int configKeyStickRight =  4;
 
 
 static const struct ConfigOption options[] = {

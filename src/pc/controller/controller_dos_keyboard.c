@@ -4,12 +4,10 @@
 #include <ultra64.h>
 
 #include <stdio.h>
+#include <allegro.h>
 
 #include "controller_api.h"
 #include "../configfile.h"
-
-// from http://www.delorie.com/djgpp/doc/ug/interrupts/inthandlers2.html
-#include "inthandlers100/keyboard.h"
 
 #include "controller_dos_keyboard.h"
 
@@ -22,9 +20,9 @@ static void set_keyboard_mapping(int index, int mask, int scancode) {
 }
 
 static void keyboard_init(void) {
-    SetKb();
+    install_keyboard();
 
-    int i;
+    int i = 0;
     set_keyboard_mapping(i++, 0x80000,      configKeyStickUp);
     set_keyboard_mapping(i++, 0x10000,      configKeyStickLeft);
     set_keyboard_mapping(i++, 0x40000,      configKeyStickDown);
@@ -41,29 +39,24 @@ static void keyboard_init(void) {
 }
 
 static void keyboard_read(OSContPad *pad) {
-    for (int i = 0; i < mapping_length; i++)
-    {
+    if (keyboard_needs_poll())
+        poll_keyboard();
+
+    for (int i = 0; i < mapping_length; i++) {
         int scan_code = keyboard_mapping[i][0];
         int mapping = keyboard_mapping[i][1];
 
-        if (KeyState(scan_code & 0x7F))
-        {
-            if (mapping == 0x10000) {
+        if (key[scan_code & 0x7F]) {
+            if (mapping == 0x10000)
                 pad->stick_x = -128;
-            }
-            else if (mapping  == 0x20000) {
+            else if (mapping  == 0x20000)
                 pad->stick_x = 127;
-            }
-            else if (mapping  == 0x40000) {
+            else if (mapping  == 0x40000)
                 pad->stick_y = -128;
-            }
-            else if (mapping == 0x80000) {
+            else if (mapping == 0x80000)
                 pad->stick_y = 127;
-            }
             else
-            {
                 pad-> button |= mapping;
-            }
         }
     }
 }

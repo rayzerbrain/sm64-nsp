@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <stdarg.h>
+#include <allegro.h>
 
 #ifdef ENABLE_DMESA
 
@@ -150,25 +151,28 @@ static void gfx_dos_init_impl(void) {
 #define FRAMESKIP 33
 
 static bool do_render = true;
+static volatile uint32_t tick = 0;
 static uint32_t last = 0;
 
-static inline unsigned long get_msec(void) {
-    static struct timeval tval;
-    gettimeofday(&tval, NULL);
-    return tval.tv_sec * 1000 + tval.tv_usec / 1000;
-}
+static void timer_handler(void) { ++tick; }
+END_OF_FUNCTION(timer_handler)
 
-static void gfx_dos_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen)
-{
-    if (__djgpp_nearptr_enable() == 0)
-    {
+static void gfx_dos_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
+    if (__djgpp_nearptr_enable() == 0) {
       printf("Could get access to first 640K of memory.\n");
       abort();
     }
 
+    allegro_init();
+
+    LOCK_VARIABLE(tick);
+    LOCK_FUNCTION(timer_handler);
+    install_timer();
+    install_int(timer_handler, FRAMETIME);
+
     gfx_dos_init_impl();
 
-    last = get_msec();
+    last = tick;
 }
 
 static void gfx_dos_set_keyboard_callbacks(UNUSED bool (*on_key_down)(int scancode), UNUSED bool (*on_key_up)(int scancode), UNUSED void (*on_all_keys_up)(void))
@@ -183,12 +187,10 @@ static void gfx_dos_set_fullscreen(UNUSED bool enable)
 {
 }
 
-static void gfx_dos_main_loop(void (*run_one_game_iter)(void))
-{
-    const uint32_t now = get_msec();
-    const uint32_t delta = now - last;
+static void gfx_dos_main_loop(void (*run_one_game_iter)(void)) {
+    const uint32_t now = tick;
 
-    const uint32_t frames = delta / FRAMETIME;
+    const uint32_t frames = now - last;
     if (frames) {
         // catch up but skip the first FRAMESKIP frames
         int skip = (frames > FRAMESKIP) ? FRAMESKIP : (frames - 1);
@@ -196,7 +198,7 @@ static void gfx_dos_main_loop(void (*run_one_game_iter)(void))
             do_render = (skip <= 0);
             run_one_game_iter();
         }
-        last = now - (delta % FRAMETIME);
+        last = now;
     }
 }
 
