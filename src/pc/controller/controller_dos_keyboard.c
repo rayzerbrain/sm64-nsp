@@ -14,6 +14,8 @@
 static int mapping_length = 13;
 static int keyboard_mapping[13][2];
 
+extern void game_exit(void);
+
 static void set_keyboard_mapping(int index, int mask, int scancode) {
     keyboard_mapping[index][0] = scancode;
     keyboard_mapping[index][1] = mask;
@@ -59,6 +61,10 @@ static void keyboard_read(OSContPad *pad) {
                 pad-> button |= mapping;
         }
     }
+
+    // check for ALT+F4
+    if ((key[119] || key[120]) && key[50])
+        game_exit();
 }
 
 

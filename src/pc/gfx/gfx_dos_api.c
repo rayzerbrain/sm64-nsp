@@ -55,13 +55,21 @@ static void gfx_dos_init_impl(void) {
     DMesaMakeCurrent(dc, db);
 }
 
+static void gfx_dos_shutdown_impl(void) {
+    DMesaMakeCurrent(NULL, NULL);
+    DMesaDestroyBuffer(db); db = NULL;
+    DMesaDestroyContext(dc); dc = NULL;
+    DMesaDestroyVisual(dv); dv = NULL;
+}
+
 #else // ENABLE_FXMESA
 
 #include <osmesa.h>
 
 #define VIDEO_INT           0x10      /* the BIOS video interrupt. */
 #define SET_MODE            0x00      /* BIOS func to set the video mode. */
-#define VGA_256_COLOR_MODE  0x13      /* use to set 256-color mode. */
+#define VGA_GRAPHICS_MODE   0x13      /* use to set 256-color mode. */
+#define VGA_TEXT_MODE       0x03      /* default DOS mode */
 #define PAL_LOAD            0x3C8     /* start loading palette */
 #define PAL_COLOR           0x3C9     /* load next palette color */
 
@@ -86,10 +94,10 @@ uint32_t *osmesa_buffer; // 320x200x4 bytes (RGBA)
 static uint8_t rgbconv[3][256][256];
 static uint8_t dit_kernel[8][8];
 
-static void set_mode_13(void) {
+static void set_video_mode(const uint8_t mode) {
     union REGS regs;
     regs.h.ah = SET_MODE;
-    regs.h.al = VGA_256_COLOR_MODE;
+    regs.h.al = mode;
     int86(VIDEO_INT, &regs, &regs);
 }
 
@@ -117,7 +125,7 @@ static void gfx_dos_init_impl(void) {
     }
 
     // VGA 320x200x256
-    set_mode_13();
+    set_video_mode(VGA_GRAPHICS_MODE);
 
     // set up regular palette as configured above;
     // however, bias the colors towards darker ones in an exponential curve
@@ -128,21 +136,28 @@ static void gfx_dos_init_impl(void) {
         outportb(PAL_COLOR, pow(((color                          ) % PAL_BBITS) * 1.0 / (PAL_BBITS-1), PAL_GAMMA) * 63);
     }
 
-    int width = 320;
-    int height = 200;
-    osmesa_buffer = (void *)malloc(width * height * 4 * sizeof(GLubyte));
-    if (!osmesa_buffer)
-    {
+    osmesa_buffer = (void *)malloc(SCREEN_WIDTH * SCREEN_HEIGHT * 4 * sizeof(GLubyte));
+    if (!osmesa_buffer) {
         fprintf(stderr, "osmesa_buffer malloc failed!\n");
         abort();
     }
+
     ctx = OSMesaCreateContextExt(OSMESA_RGBA, 16, 0, 0, NULL);
-    if (!OSMesaMakeCurrent(ctx, osmesa_buffer, GL_UNSIGNED_BYTE, width, height))
-    {
+    if (!OSMesaMakeCurrent(ctx, osmesa_buffer, GL_UNSIGNED_BYTE, SCREEN_WIDTH, SCREEN_HEIGHT)) {
         fprintf(stderr, "OSMesaMakeCurrent failed!\n");
         abort();
     }
+
     OSMesaPixelStore(OSMESA_Y_UP, GL_FALSE);
+}
+
+static void gfx_dos_shutdown_impl(void) {
+    OSMesaDestroyContext(ctx);
+
+    free(osmesa_buffer);
+    osmesa_buffer = NULL;
+
+    set_video_mode(VGA_TEXT_MODE);
 }
 
 #endif // ENABLE_FXMESA
@@ -150,6 +165,7 @@ static void gfx_dos_init_impl(void) {
 #define FRAMETIME 33
 #define FRAMESKIP 33
 
+static bool init_done = false;
 static bool do_render = true;
 static volatile uint32_t tick = 0;
 static uint32_t last = 0;
@@ -173,19 +189,15 @@ static void gfx_dos_init(UNUSED const char *game_name, UNUSED bool start_in_full
     gfx_dos_init_impl();
 
     last = tick;
+
+    init_done = true;
 }
 
-static void gfx_dos_set_keyboard_callbacks(UNUSED bool (*on_key_down)(int scancode), UNUSED bool (*on_key_up)(int scancode), UNUSED void (*on_all_keys_up)(void))
-{
-}
+static void gfx_dos_set_keyboard_callbacks(UNUSED bool (*on_key_down)(int scancode), UNUSED bool (*on_key_up)(int scancode), UNUSED void (*on_all_keys_up)(void)) { }
 
-static void gfx_dos_set_fullscreen_changed_callback(UNUSED void (*on_fullscreen_changed)(bool is_now_fullscreen))
-{
-}
+static void gfx_dos_set_fullscreen_changed_callback(UNUSED void (*on_fullscreen_changed)(bool is_now_fullscreen)) { }
 
-static void gfx_dos_set_fullscreen(UNUSED bool enable)
-{
-}
+static void gfx_dos_set_fullscreen(UNUSED bool enable) { }
 
 static void gfx_dos_main_loop(void (*run_one_game_iter)(void)) {
     const uint32_t now = tick;
@@ -202,18 +214,14 @@ static void gfx_dos_main_loop(void (*run_one_game_iter)(void)) {
     }
 }
 
-static void gfx_dos_get_dimensions(uint32_t *width, uint32_t *height)
-{
+static void gfx_dos_get_dimensions(uint32_t *width, uint32_t *height) {
     *width = SCREEN_WIDTH;
     *height = SCREEN_HEIGHT;
 }
 
-static void gfx_dos_handle_events(void)
-{
-}
+static void gfx_dos_handle_events(void) { }
 
-static bool gfx_dos_start_frame(void)
-{
+static bool gfx_dos_start_frame(void) {
     return do_render;
 }
 
@@ -239,13 +247,19 @@ static void gfx_dos_swap_buffers_begin(void) {
 #endif
 }
 
-static void gfx_dos_swap_buffers_end(void)
-{
+static void gfx_dos_swap_buffers_end(void) { }
+
+static double gfx_dos_get_time(void) {
+    return 0.0;
 }
 
-static double gfx_dos_get_time(void)
-{
-    return 0.0;
+static void gfx_dos_shutdown(void) {
+    if (!init_done) return;
+
+    gfx_dos_shutdown_impl();
+    // allegro_exit() should be in atexit()
+
+    init_done = false;
 }
 
 struct GfxWindowManagerAPI gfx_dos_api =
@@ -260,7 +274,8 @@ struct GfxWindowManagerAPI gfx_dos_api =
     gfx_dos_start_frame,
     gfx_dos_swap_buffers_begin,
     gfx_dos_swap_buffers_end,
-    gfx_dos_get_time
+    gfx_dos_get_time,
+    gfx_dos_shutdown
 };
 
 #endif

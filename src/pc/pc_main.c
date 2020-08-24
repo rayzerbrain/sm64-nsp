@@ -136,6 +136,12 @@ static void on_fullscreen_changed(bool is_now_fullscreen) {
     configFullscreen = is_now_fullscreen;
 }
 
+void game_exit(void) {
+    if (audio_api && audio_api->shutdown) audio_api->shutdown();
+    gfx_shutdown();
+    exit(0);
+}
+
 void main_func(void) {
     static u64 pool[0x165000/8 / 4 * sizeof(void *)];
     main_pool_init(pool, pool + sizeof(pool) / sizeof(pool[0]));

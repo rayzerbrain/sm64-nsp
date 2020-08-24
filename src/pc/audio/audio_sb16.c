@@ -156,7 +156,7 @@ static bool audio_sb_init(void) {
 
     LOCK_VARIABLE(queued);
     LOCK_FUNCTION(audio_int);
-    install_int(audio_int, 5);
+    install_int(audio_int, 3);
 
     return true;
 }
@@ -175,11 +175,21 @@ static void audio_sb_play(const uint8_t *buf, size_t len) {
         sndqueue_push(buf, len);
 }
 
+static void audio_sb_shutdown(void) {
+    if (stream) {
+        remove_int(audio_int);
+        stop_audio_stream(stream);
+        remove_sound();
+        stream = NULL;
+    }
+}
+
 struct AudioAPI audio_sb = {
     audio_sb_init,
     audio_sb_buffered,
     audio_sb_get_desired_buffered,
-    audio_sb_play
+    audio_sb_play,
+    audio_sb_shutdown
 };
 
 #endif
