@@ -72,6 +72,7 @@ struct ShaderProgram {
     struct CCFeatures cc;
     enum MixType mix;
     bool texture_used[2];
+    int texture_ord[2];
     int num_inputs;
 };
 
@@ -96,10 +97,11 @@ static size_t cur_buf_num_tris = 0;
 static size_t cur_buf_stride = 0;
 static bool gl_blend = false;
 
-static bool gl_adv_fog = false;
 static bool gl_npot = false;
 static bool gl_multitexture = false;
 
+static float c_mix[] = { 0.f, 0.f, 0.f, 1.f };
+static float c_invmix[] = { 1.f, 1.f, 1.f, 1.f };
 static const float c_white[] = { 1.f, 1.f, 1.f, 1.f };
 
 // from https://github.com/z2442/sm64-port
@@ -203,22 +205,9 @@ static void gfx_opengl_apply_shader(struct ShaderProgram *prg) {
     }
 
     if (prg->shader_id & SHADER_OPT_FOG) {
-        // fog requested, we can deal with it in one of two ways
-        if (gl_adv_fog) {
-            // if GL_EXT_fog_coord is available, use the provided fog factor as scaled depth for GL fog
-            const float fogrgb[] = { ofs[0], ofs[1], ofs[2] };
-            glEnable(GL_FOG);
-            glFogfv(GL_FOG_COLOR, fogrgb); // color is the same for all verts, only intensity is different
-            glEnableClientState(GL_FOG_COORD_ARRAY);
-            mglFogCoordPointer(GL_FLOAT, cur_buf_stride, ofs + 3); // point it to alpha, which is fog factor
-        } else {
-            // if there's no fog coords available, blend it on top of normal tris later
-            cur_fog_ofs = ofs;
-        }
+        // blend it on top of normal tris later
+        cur_fog_ofs = ofs;
         ofs += 4;
-    } else if (gl_adv_fog) {
-        glDisableClientState(GL_FOG_COORD_ARRAY);
-        glDisable(GL_FOG);
     }
 
     if (prg->num_inputs) {
@@ -226,10 +215,28 @@ static void gfx_opengl_apply_shader(struct ShaderProgram *prg) {
         // TODO: more than one color (maybe glSecondaryColorPointer?)
         // HACK: if there's a texture and two colors, one of them is likely for speculars or some shit (see mario head)
         //       if there's two colors but no texture, the real color is likely the second one
-        const int hack = (prg->num_inputs > 1) * (4 - (int)prg->texture_used[0]);
-        glEnableClientState(GL_COLOR_ARRAY);
-        glColorPointer(4, GL_FLOAT, cur_buf_stride, ofs + hack);
-        ofs += 4 * prg->num_inputs;
+        // HACKHACK: alpha is 0 in the transition shader (0x01A00045), maybe figure out the flags instead
+        const int vlen = (prg->cc.opt_alpha && prg->shader_id != 0x01A00045) ? 4 : 3;
+        const int hack = vlen * (prg->num_inputs > 1);
+
+        if (prg->texture_used[1] && prg->cc.do_mix[0]) {
+            // HACK: when two textures are mixed by vertex color, store the color
+            //       it will be used later when rendering two texture passes
+            c_mix[0] = *(ofs + hack + 0);
+            c_mix[1] = *(ofs + hack + 1);
+            c_mix[2] = *(ofs + hack + 2);
+            c_invmix[0] = 1.f - c_mix[0];
+            c_invmix[1] = 1.f - c_mix[1];
+            c_invmix[2] = 1.f - c_mix[2];
+            glDisableClientState(GL_COLOR_ARRAY);
+            glColor3f(c_mix[0], c_mix[1], c_mix[2]);
+        } else {
+            // otherwise use vertex colors as normal
+            glEnableClientState(GL_COLOR_ARRAY);
+            glColorPointer(vlen, GL_FLOAT, cur_buf_stride, ofs + hack);
+        }
+
+        ofs += prg->num_inputs * vlen;
     } else {
         glDisableClientState(GL_COLOR_ARRAY);
     }
@@ -241,17 +248,17 @@ static void gfx_opengl_apply_shader(struct ShaderProgram *prg) {
         if (prg->shader_id & SHADER_OPT_TEXTURE_EDGE) {
             // (horrible) alpha discard
             glEnable(GL_ALPHA_TEST);
-            glAlphaFunc(GL_GREATER, 0.3f);
+            glAlphaFunc(GL_GREATER, 0.666f);
         } else {
             glDisable(GL_ALPHA_TEST);
         }
 
         // configure texenv
-        GLenum mode = GL_REPLACE;
+        GLenum mode;
         switch (prg->mix) {
             case SH_MT_TEXTURE:         mode = texenv_set_texture(prg); break;
-            case SH_MT_TEXTURE_COLOR:   mode = texenv_set_texture_color(prg); break;
             case SH_MT_TEXTURE_TEXTURE: mode = texenv_set_texture_texture(prg); break;
+            case SH_MT_TEXTURE_COLOR:   mode = texenv_set_texture_color(prg); break;
             default:                    mode = texenv_set_color(prg); break;
         }
         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, mode);
@@ -284,16 +291,24 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(uint32_t shad
     prg->texture_used[0] = ccf.used_textures[0];
     prg->texture_used[1] = ccf.used_textures[1];
 
-    if (ccf.used_textures[0] && ccf.used_textures[1])
+    if (ccf.used_textures[0] && ccf.used_textures[1]) {
         prg->mix = SH_MT_TEXTURE_TEXTURE;
-    else if (ccf.used_textures[0] && ccf.num_inputs)
+        if (ccf.do_single[1]) {
+            prg->texture_ord[0] = 1;
+            prg->texture_ord[1] = 0;
+        } else {
+            prg->texture_ord[0] = 0;
+            prg->texture_ord[1] = 1;
+        }
+    } else if (ccf.used_textures[0] && ccf.num_inputs) {
         prg->mix = SH_MT_TEXTURE_COLOR;
-    else if (ccf.used_textures[0])
+    } else if (ccf.used_textures[0]) {
         prg->mix = SH_MT_TEXTURE;
-    else if (ccf.num_inputs > 1)
+    } else if (ccf.num_inputs > 1) {
         prg->mix = SH_MT_COLOR_COLOR;
-    else if (ccf.num_inputs)
+    } else if (ccf.num_inputs) {
         prg->mix = SH_MT_COLOR;
+    }
 
     prg->enabled = false;
 
@@ -347,6 +362,13 @@ static inline GLenum gfx_cm_to_opengl(uint32_t val) {
     return (val & G_TX_MIRROR) ? GL_MIRRORED_REPEAT : GL_REPEAT;
 }
 
+static inline void gfx_opengl_apply_tmu_state(const int tile) {
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, tmu_state[tile].min_filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, tmu_state[tile].mag_filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tmu_state[tile].wrap_s);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tmu_state[tile].wrap_t);
+}
+
 static void gfx_opengl_set_sampler_parameters(int tile, bool linear_filter, uint32_t cms, uint32_t cmt) {
     const GLenum filter = linear_filter ? GL_LINEAR : GL_NEAREST;
 
@@ -358,13 +380,8 @@ static void gfx_opengl_set_sampler_parameters(int tile, bool linear_filter, uint
     tmu_state[tile].wrap_s = wrap_s;
     tmu_state[tile].wrap_t = wrap_t;
 
-    if (!tile) {
-        // set state for the first texture right away
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
-    }
+    // set state for the first texture right away
+    if (!tile) gfx_opengl_apply_tmu_state(tile);
 }
 
 static void gfx_opengl_set_depth_test(bool depth_test) {
@@ -407,7 +424,7 @@ static void gfx_opengl_set_use_alpha(bool use_alpha) {
 // draws the same triangles as plain fog color + fog intensity as alpha
 // on top of the normal tris and blends them to achieve sort of the same effect
 // as fog would
-static inline void gfx_opengl_blend_fog_tris(void) {
+static inline void gfx_opengl_pass_fog(void) {
     // if texturing is enabled, disable it, since we're blending colors
     if (cur_shader->texture_used[0] || cur_shader->texture_used[1])
         glDisable(GL_TEXTURE_2D);
@@ -428,6 +445,31 @@ static inline void gfx_opengl_blend_fog_tris(void) {
         glEnable(GL_TEXTURE_2D);
 }
 
+// this assumes the two textures are combined like so:
+// result = mix(tex0.rgb, tex1.rgb, vertex.rgb)
+static inline void gfx_opengl_pass_mix_texture(void) {
+    // set second texture
+    glBindTexture(GL_TEXTURE_2D, tmu_state[cur_shader->texture_ord[1]].tex);
+    gfx_opengl_apply_tmu_state(cur_shader->texture_ord[1]);
+
+    if (!gl_blend) glEnable(GL_BLEND); // enable blending temporarily
+    glBlendFunc(GL_ONE, GL_ONE); // additive blending
+    glDepthFunc(GL_LEQUAL); // Z is the same as the base triangles
+
+    // draw the same triangles, but with the inverse of the mix color
+    glColor3f(c_invmix[0], c_invmix[1], c_invmix[2]);
+    glDrawArrays(GL_TRIANGLES, 0, 3 * cur_buf_num_tris);
+    glColor3f(1.f, 1.f, 1.f); // reset color
+
+    glDepthFunc(GL_LESS); // set back to default
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // same here
+    if (!gl_blend) glDisable(GL_BLEND); // disable blending if it was disabled
+
+    // set old texture
+    glBindTexture(GL_TEXTURE_2D, tmu_state[cur_shader->texture_ord[0]].tex);
+    gfx_opengl_apply_tmu_state(cur_shader->texture_ord[0]);
+}
+
 static void gfx_opengl_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
     cur_buf = buf_vbo;
     cur_buf_size = buf_vbo_len * 4;
@@ -436,10 +478,17 @@ static void gfx_opengl_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_
 
     gfx_opengl_apply_shader(cur_shader);
 
+    // if there's two textures, set primary texture first
+    if (cur_shader->texture_used[1])
+        glBindTexture(GL_TEXTURE_2D, tmu_state[cur_shader->texture_ord[0]].tex);
+
     glDrawArrays(GL_TRIANGLES, 0, 3 * cur_buf_num_tris);
 
+    // if there's two textures, draw polys with the second texture
+    if (cur_shader->texture_used[1]) gfx_opengl_pass_mix_texture();
+
     // cur_fog_ofs is only set if GL_EXT_fog_coord isn't used
-    if (cur_fog_ofs) gfx_opengl_blend_fog_tris();
+    if (cur_fog_ofs) gfx_opengl_pass_fog();
 }
 
 static inline bool gl_check_ext(const char *name) {
@@ -477,16 +526,17 @@ static inline bool gl_get_version(int *major, int *minor, bool *is_es) {
 static void gfx_opengl_init(void) {
 #if FOR_WINDOWS || defined(OSX_BUILD)
     GLenum err;
-    if ((err = glewInit()) != GLEW_OK)
-        sys_fatal("could not init GLEW:\n%s", glewGetErrorString(err));
+    if ((err = glewInit()) != GLEW_OK) {
+        printf("could not init GLEW:\n%s", glewGetErrorString(err));
+        abort();
+    }
 #endif
 
     // check GL version
     int vmajor, vminor;
     bool is_es = false;
     gl_get_version(&vmajor, &vminor, &is_es);
-    if (vmajor < 2 && vminor < 2 && !is_es)
-    {
+    if ((vmajor < 2 && vminor < 1) || is_es) {
         printf("OpenGL 1.2+ is required.\nReported version: %s%d.%d\n", is_es ? "ES" : "", vmajor, vminor);
         abort();
     }
@@ -497,42 +547,15 @@ static void gfx_opengl_init(void) {
     // check if we support multitexturing
     gl_multitexture = vmajor > 1 || vminor > 3 || gl_check_ext("GL_ARB_multitexture");
 
-    // check whether we can use advanced fog shit
-    gl_adv_fog = false;
-
-    const bool fog_ext =
-        vmajor > 1 || vminor > 3 ||
-        gl_check_ext("GL_EXT_fog_coord") ||
-        gl_check_ext("GL_ARB_fog_coord");
-
-    if (fog_ext) {
-        // try to load manually, as this might be an extension, and even then the ext list may lie
-        mglFogCoordPointer = mglGetProcAddress("glFogCoordPointer");
-        if (!mglFogCoordPointer) mglFogCoordPointer = mglGetProcAddress("glFogCoordPointerEXT");
-        if (!mglFogCoordPointer) mglFogCoordPointer = mglGetProcAddress("glFogCoordPointerARB");
-        if (!mglFogCoordPointer)
-            printf("glFogCoordPointer is not actually available, it won't be used.\n");
-        else
-            gl_adv_fog = true; // appears to be all good
-    }
-
     printf("GL_VERSION = %s\n", glGetString(GL_VERSION));
     printf("GL_EXTENSIONS =\n%s\n", glGetString(GL_EXTENSIONS));
-
-    if (gl_adv_fog) {
-        // set fog params, they never change
-        printf("GL_EXT_fog_coord available, using that for fog\n");
-        glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
-        glFogi(GL_FOG_MODE, GL_LINEAR);
-        glFogf(GL_FOG_START, 0.0f);
-        glFogf(GL_FOG_END, 1.0f);
-    }
 
     // these also never change
     glDisable(GL_LIGHTING);
     glDisable(GL_CULL_FACE);
     // glDisable(GL_DITHER);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     glEnableClientState(GL_VERTEX_ARRAY);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, c_white);
@@ -579,7 +602,8 @@ struct GfxRenderingAPI gfx_opengl_api = {
     gfx_opengl_on_resize,
     gfx_opengl_start_frame,
     gfx_opengl_end_frame,
-    gfx_opengl_finish_render
+    gfx_opengl_finish_render,
+    gfx_opengl_shutdown
 };
 
 #endif // ENABLE_OPENGL_LEGACY
