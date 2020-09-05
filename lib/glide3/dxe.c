@@ -30,12 +30,17 @@ extern_asm(_printf);
 extern_asm(_sprintf);
 extern_asm(_sscanf);
 extern_asm(_strcat);
+extern_asm(_strncat);
 extern_asm(_strcmp);
+extern_asm(_strncmp);
 extern_asm(_strcpy);
+extern_asm(_strncpy);
 extern_asm(_strtoul);
 extern_asm(_usleep);
 extern_asm(_vfprintf);
 extern_asm(_vsprintf);
+extern_asm(_clock);
+extern_asm(_putenv);
 
 DXE_EXPORT_TABLE_AUTO (___dxe_eta___glide3x)
 	DXE_EXPORT_ASM (___dj_assert)
@@ -68,10 +73,15 @@ DXE_EXPORT_TABLE_AUTO (___dxe_eta___glide3x)
 	DXE_EXPORT_ASM (_sprintf)
 	DXE_EXPORT_ASM (_sscanf)
 	DXE_EXPORT_ASM (_strcat)
+	DXE_EXPORT_ASM (_strncat)
 	DXE_EXPORT_ASM (_strcmp)
+	DXE_EXPORT_ASM (_strncmp)
 	DXE_EXPORT_ASM (_strcpy)
+	DXE_EXPORT_ASM (_strncpy)
 	DXE_EXPORT_ASM (_strtoul)
 	DXE_EXPORT_ASM (_usleep)
 	DXE_EXPORT_ASM (_vfprintf)
 	DXE_EXPORT_ASM (_vsprintf)
+	DXE_EXPORT_ASM (_clock)
+	DXE_EXPORT_ASM (_putenv)
 DXE_EXPORT_END
