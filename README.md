@@ -28,6 +28,16 @@ For *best* performance:
  - Set `draw_sky` to `false` in `SM64CONF.TXT` to avoid drawing the skybox (saves a lot of cycles in software mode)
  - Set `texture_filtering` to `false` in `SM64CONF.TXT` to disable linear filtering (saves a lot of cycles in software mode)
  - Set `enable_sound` to `false` in `SM64CONF.TXT` to disable sound (saves your ears from an untimely death and some cycles too)
+ - Set `enable_fog` to `false` to disable fog (saves a tiny bit)
+
+You can change the maximum amount of skipped frames by changing `frameskip` in `SM64CONF.TXT`.
+
+You can change the resolution by changing `screen_width`, `screen_height`.
+
+In software mode the only resolutions that will work are 320x200 (mode 13h) and 320x240 (mode X).
+In 3DFX mode the list of supported resolutions depends on the card, 640x480 is a safe value.
+
+Use `ENABLE_SOFTRAST=1` to enable the experimental custom software renderer. It can be faster than `DOS_GL=osmesa` in some cases, but might be much more buggy.
 
 ### 3Dfx mode:
 
