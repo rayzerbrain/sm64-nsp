@@ -33,7 +33,13 @@ bool configFullscreen            = false;
 bool configDrawSky               = true;
 bool configFiltering             = true;
 bool configEnableSound           = false;
+bool configEnableFog             = true;
+unsigned int configScreenWidth   = 640;
+unsigned int configScreenHeight  = 480;
+unsigned int configFrameskip     = 30;
 // Keyboard mappings (scancode values)
+#ifdef TARGET_DOS
+// Allegro scancodes
 unsigned int configKeyA          = 12;
 unsigned int configKeyB          = 72;
 unsigned int configKeyStart      = 75;
@@ -47,13 +53,32 @@ unsigned int configKeyStickUp    = 23;
 unsigned int configKeyStickDown  = 19;
 unsigned int configKeyStickLeft  =  1;
 unsigned int configKeyStickRight =  4;
-
+#else
+// DInput scancodes
+unsigned int configKeyA          = 0x26;
+unsigned int configKeyB          = 0x33;
+unsigned int configKeyStart      = 0x39;
+unsigned int configKeyR          = 0x36;
+unsigned int configKeyZ          = 0x25;
+unsigned int configKeyCUp        = 0x148;
+unsigned int configKeyCDown      = 0x150;
+unsigned int configKeyCLeft      = 0x14B;
+unsigned int configKeyCRight     = 0x14D;
+unsigned int configKeyStickUp    = 0x11;
+unsigned int configKeyStickDown  = 0x1F;
+unsigned int configKeyStickLeft  = 0x1E;
+unsigned int configKeyStickRight = 0x20;
+#endif
 
 static const struct ConfigOption options[] = {
     {.name = "fullscreen",        .type = CONFIG_TYPE_BOOL, .boolValue = &configFullscreen},
     {.name = "draw_sky",          .type = CONFIG_TYPE_BOOL, .boolValue = &configDrawSky},
     {.name = "texture_filtering", .type = CONFIG_TYPE_BOOL, .boolValue = &configFiltering},
+    {.name = "enable_fog",        .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableFog},
     {.name = "enable_sound",      .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableSound},
+    {.name = "screen_width",      .type = CONFIG_TYPE_UINT, .uintValue = &configScreenWidth},
+    {.name = "screen_height",     .type = CONFIG_TYPE_UINT, .uintValue = &configScreenHeight},
+    {.name = "frameskip",         .type = CONFIG_TYPE_UINT, .uintValue = &configFrameskip},
     {.name = "key_a",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
     {.name = "key_b",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
     {.name = "key_start",         .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},

@@ -8,13 +8,12 @@
 
 #include "controller_api.h"
 #include "../configfile.h"
+#include "../common.h"
 
 #include "controller_dos_keyboard.h"
 
 static int mapping_length = 13;
 static int keyboard_mapping[13][2];
-
-extern void game_exit(void);
 
 static void set_keyboard_mapping(int index, int mask, int scancode) {
     keyboard_mapping[index][0] = scancode;

@@ -2,13 +2,18 @@
 #define GFX_PC_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 struct GfxRenderingAPI;
 struct GfxWindowManagerAPI;
 
 struct GfxDimensions {
     uint32_t width, height;
+#ifdef GBI_FLOATS
     float aspect_ratio;
+#else
+    int32_t aspect_ratio;
+#endif
 };
 
 extern struct GfxDimensions gfx_current_dimensions;

@@ -1,6 +1,6 @@
 #include "../compat.h"
 
-#if !defined(__linux__) && !defined(__BSD__) && defined(ENABLE_OPENGL) && !defined(TARGET_DOS)
+#if !defined(__linux__) && !defined(__BSD__) && !defined(TARGET_DOS) && (defined(ENABLE_OPENGL) || defined(ENABLE_OPENGL_LEGACY) || defined(ENABLE_SOFTRAST))
 
 #ifdef __MINGW32__
 #define FOR_WINDOWS 1
@@ -16,13 +16,17 @@
 #else
 #include <SDL2/SDL.h>
 #define GL_GLEXT_PROTOTYPES 1
+#ifdef ENABLE_OPENGL_LEGACY
+#include <SDL2/SDL_opengl.h>
+#else
 #include <SDL2/SDL_opengles2.h>
 #endif
+#endif
 
+#include "../common.h"
+#include "../configfile.h"
 #include "gfx_window_manager_api.h"
 #include "gfx_screen_config.h"
-
-#define GFX_API_NAME "SDL2 - OpenGL"
 
 static SDL_Window *wnd;
 static int inverted_scancode_table[512];
@@ -34,6 +38,20 @@ static void (*on_fullscreen_changed_callback)(bool is_now_fullscreen);
 static bool (*on_key_down_callback)(int scancode);
 static bool (*on_key_up_callback)(int scancode);
 static void (*on_all_keys_up_callback)(void);
+
+#ifdef ENABLE_SOFTRAST
+#define GFX_API_NAME "SDL2 - Software"
+#include "gfx_soft.h"
+static SDL_Renderer *renderer;
+static SDL_Surface *buffer = NULL;
+static SDL_Texture *texture = NULL;
+#else
+#define GFX_API_NAME "SDL2 - OpenGL"
+#endif
+
+static int f_frames = 0;
+static double f_time = 0.0;
+static Uint32 last_time;
 
 const SDL_Scancode windows_scancode_table[] =
 {
@@ -155,14 +173,27 @@ int test_vsync(void) {
 static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
     SDL_Init(SDL_INIT_VIDEO);
 
+    char title[512];
+    sprintf(title, "%s (%s)", game_name, GFX_API_NAME);
+
+    window_width = configScreenWidth;
+    window_height = configScreenHeight;
+#ifdef ENABLE_SOFTRAST
+    wnd = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            window_width * 2, window_height * 2, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    renderer = SDL_CreateRenderer(wnd, -1, SDL_RENDERER_ACCELERATED);
+
+    SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
+    SDL_RenderSetLogicalSize(renderer, window_width, window_height);
+
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, window_width, window_height);
+    if (start_in_fullscreen) set_fullscreen(true, false);
+#else
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
     //SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
     //SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-
-    char title[512];
-    int len = sprintf(title, "%s (%s)", game_name, GFX_API_NAME);
 
     wnd = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
             window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
@@ -177,6 +208,9 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
     test_vsync();
     if (!vsync_enabled)
         puts("Warning: VSync is not enabled or not working. Falling back to timer for synchronization");
+#endif
+
+    f_time = last_time = SDL_GetTicks();
 
     for (size_t i = 0; i < sizeof(windows_scancode_table) / sizeof(SDL_Scancode); i++) {
         inverted_scancode_table[windows_scancode_table[i]] = i;
@@ -187,8 +221,8 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
     }
 
     for (size_t i = 0; i < sizeof(scancode_rmapping_nonextended) / sizeof(scancode_rmapping_nonextended[0]); i++) {
-        inverted_scancode_table[scancode_rmapping_extended[i][0]] = inverted_scancode_table[scancode_rmapping_extended[i][1]];
-        inverted_scancode_table[scancode_rmapping_extended[i][1]] += 0x100;
+        inverted_scancode_table[scancode_rmapping_nonextended[i][0]] = inverted_scancode_table[scancode_rmapping_nonextended[i][1]];
+        inverted_scancode_table[scancode_rmapping_nonextended[i][1]] += 0x100;
     }
 }
 
@@ -213,8 +247,13 @@ static void gfx_sdl_main_loop(void (*run_one_game_iter)(void)) {
 }
 
 static void gfx_sdl_get_dimensions(uint32_t *width, uint32_t *height) {
+#ifdef ENABLE_SOFTRAST
+    *width = configScreenWidth;
+    *height = configScreenHeight;
+#else
     *width = window_width;
     *height = window_height;
+#endif
 }
 
 static int translate_scancode(int scancode) {
@@ -263,7 +302,8 @@ static void gfx_sdl_handle_events(void) {
                 }
                 break;
             case SDL_QUIT:
-                exit(0);
+                game_exit();
+                break;
         }
     }
 }
@@ -275,7 +315,6 @@ static bool gfx_sdl_start_frame(void) {
 static void sync_framerate_with_timer(void) {
     // Number of milliseconds a frame should take (30 fps)
     const Uint32 FRAME_TIME = 1000 / 30;
-    static Uint32 last_time;
     Uint32 elapsed = SDL_GetTicks() - last_time;
 
     if (elapsed < FRAME_TIME)
@@ -288,14 +327,32 @@ static void gfx_sdl_swap_buffers_begin(void) {
         sync_framerate_with_timer();
     }
 
+#ifdef ENABLE_SOFTRAST
+    SDL_UpdateTexture(texture, NULL, (const void *)gfx_output, 4 * configScreenWidth);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+#else
     SDL_GL_SwapWindow(wnd);
+#endif
 }
 
 static void gfx_sdl_swap_buffers_end(void) {
+    f_frames++;
 }
 
 static double gfx_sdl_get_time(void) {
     return 0.0;
+}
+
+static void gfx_sdl_shutdown(void) {
+    const double elapsed = (SDL_GetTicks() - f_time) / 1000.0;
+    printf("\nstats\n");
+    printf("frames    %010d\n", f_frames);
+    printf("time      %010.4lf sec\n", elapsed);
+    printf("frametime %010.8lf sec\n", elapsed / (double)f_frames);
+    printf("framerate %010.5lf fps\n\n", (double)f_frames / elapsed);
+    fflush(stdout);
 }
 
 struct GfxWindowManagerAPI gfx_sdl = {
@@ -309,7 +366,8 @@ struct GfxWindowManagerAPI gfx_sdl = {
     gfx_sdl_start_frame,
     gfx_sdl_swap_buffers_begin,
     gfx_sdl_swap_buffers_end,
-    gfx_sdl_get_time
+    gfx_sdl_get_time,
+    gfx_sdl_shutdown,
 };
 
 #endif

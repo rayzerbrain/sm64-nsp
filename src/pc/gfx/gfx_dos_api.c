@@ -6,6 +6,8 @@
 #include "macros.h"
 #include "gfx_dos_api.h"
 #include "gfx_opengl.h"
+#include "../configfile.h"
+#include "../common.h"
 
 #include <dos.h>
 #include <pc.h>
@@ -23,9 +25,6 @@
 
 #ifdef ENABLE_DMESA
 
-#define SCREEN_WIDTH  640
-#define SCREEN_HEIGHT 480
-
 #include <GL/gl.h>
 #include <GL/dmesa.h>
 
@@ -34,9 +33,9 @@ static DMesaContext dc;
 static DMesaBuffer db;
 
 static void gfx_dos_init_impl(void) {
-    dv = DMesaCreateVisual(SCREEN_WIDTH, SCREEN_HEIGHT, 16, 60, 1, 1, 0, 16, 0, 0);
+    dv = DMesaCreateVisual(configScreenWidth, configScreenHeight, 16, 60, 1, 1, 0, 16, 0, 0);
     if (!dv) {
-        printf("DMesaCreateVisual failed\n");
+        printf("DMesaCreateVisual failed: resolution not supported?\n");
         abort();
     }
 
@@ -46,7 +45,7 @@ static void gfx_dos_init_impl(void) {
         abort();
     }
 
-    db = DMesaCreateBuffer(dv, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    db = DMesaCreateBuffer(dv, 0, 0, configScreenWidth, configScreenHeight);
     if (!db) {
         printf("DMesaCreateBuffer failed\n");
         abort();
@@ -64,17 +63,15 @@ static void gfx_dos_shutdown_impl(void) {
 
 #else // ENABLE_FXMESA
 
-#include <osmesa.h>
-
-#define VIDEO_INT           0x10      /* the BIOS video interrupt. */
-#define SET_MODE            0x00      /* BIOS func to set the video mode. */
-#define VGA_GRAPHICS_MODE   0x13      /* use to set 256-color mode. */
-#define VGA_TEXT_MODE       0x03      /* default DOS mode */
+#define REG_SELECT          0x3C4     /* VGA register select */
+#define REG_VALUE           0x3C5     /* send value to selected register */
+#define REG_MASK            0x02      /* map mask register */
 #define PAL_LOAD            0x3C8     /* start loading palette */
 #define PAL_COLOR           0x3C9     /* load next palette color */
 
-#define SCREEN_WIDTH        320       /* width in pixels of mode 0x13 */
-#define SCREEN_HEIGHT       200       /* height in pixels of mode 0x13 */
+#define SCREEN_WIDTH        320       /* width in pixels */
+#define SCREEN_HEIGHT       200       /* height in mode 13h, in pixels */
+#define SCREEN_HEIGHT_X     240       /* height in mode X, in pixels */
 
 // 7*9*4 regular palette (252 colors)
 #define PAL_RBITS 7
@@ -89,17 +86,19 @@ static void gfx_dos_shutdown_impl(void) {
 
 #define umin(a, b) (((a) < (b)) ? (a) : (b))
 
-OSMesaContext ctx;
-uint32_t *osmesa_buffer; // 320x200x4 bytes (RGBA)
+typedef struct { uint8_t r, g, b, a; } RGBA;
 static uint8_t rgbconv[3][256][256];
 static uint8_t dit_kernel[8][8];
 
-static void set_video_mode(const uint8_t mode) {
-    union REGS regs;
-    regs.h.ah = SET_MODE;
-    regs.h.al = mode;
-    int86(VIDEO_INT, &regs, &regs);
-}
+#ifdef ENABLE_OSMESA
+#include <osmesa.h>
+OSMesaContext ctx;
+uint32_t *osmesa_buffer; // 320x240x4 bytes (RGBA)
+#define GFX_BUFFER osmesa_buffer
+#else
+#include "gfx_soft.h"
+#define GFX_BUFFER gfx_output
+#endif
 
 static void gfx_dos_init_impl(void) {
     // create Bayer 8x8 dithering matrix
@@ -124,8 +123,19 @@ static void gfx_dos_init_impl(void) {
         }
     }
 
-    // VGA 320x200x256
-    set_video_mode(VGA_GRAPHICS_MODE);
+    // if resolution isn't 320x200 or 320x240 reset it to 320x200
+    if (configScreenWidth != SCREEN_WIDTH || (configScreenHeight != SCREEN_HEIGHT && configScreenHeight != SCREEN_HEIGHT_X)) {
+        printf("software mode only supports 320x200 (mode 13h) and 320x240 (mode X)!\ndefaulting to 320x200\n");
+        configScreenWidth = SCREEN_WIDTH;
+        configScreenHeight = SCREEN_HEIGHT;
+        rest(2000);
+    }
+
+    // set mode X if height is 240, 13h otherwise
+    if (configScreenHeight == SCREEN_HEIGHT_X)
+        set_gfx_mode(GFX_MODEX, SCREEN_WIDTH, SCREEN_HEIGHT_X, 0, 0);
+    else
+        set_gfx_mode(GFX_VGA, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0);
 
     // set up regular palette as configured above;
     // however, bias the colors towards darker ones in an exponential curve
@@ -136,34 +146,69 @@ static void gfx_dos_init_impl(void) {
         outportb(PAL_COLOR, pow(((color                          ) % PAL_BBITS) * 1.0 / (PAL_BBITS-1), PAL_GAMMA) * 63);
     }
 
-    osmesa_buffer = (void *)malloc(SCREEN_WIDTH * SCREEN_HEIGHT * 4 * sizeof(GLubyte));
+#ifdef ENABLE_OSMESA
+    osmesa_buffer = (void *)malloc(configScreenWidth * configScreenHeight * 4 * sizeof(GLubyte));
     if (!osmesa_buffer) {
         fprintf(stderr, "osmesa_buffer malloc failed!\n");
         abort();
     }
-
     ctx = OSMesaCreateContextExt(OSMESA_RGBA, 16, 0, 0, NULL);
-    if (!OSMesaMakeCurrent(ctx, osmesa_buffer, GL_UNSIGNED_BYTE, SCREEN_WIDTH, SCREEN_HEIGHT)) {
+    if (!OSMesaMakeCurrent(ctx, osmesa_buffer, GL_UNSIGNED_BYTE, configScreenWidth, configScreenHeight)) {
         fprintf(stderr, "OSMesaMakeCurrent failed!\n");
         abort();
     }
-
     OSMesaPixelStore(OSMESA_Y_UP, GL_FALSE);
+#endif
 }
 
 static void gfx_dos_shutdown_impl(void) {
+#ifdef ENABLE_OSMESA
     OSMesaDestroyContext(ctx);
-
     free(osmesa_buffer);
     osmesa_buffer = NULL;
+#endif
+    // go back to default text mode
+    set_gfx_mode(GFX_TEXT, 0, 0, 0, 0);
+}
 
-    set_video_mode(VGA_TEXT_MODE);
+static inline void gfx_dos_swap_buffers_modex(void) {
+    // we're gonna be only sending plane switch commands until the end of the function
+    outportb(REG_SELECT, REG_MASK);
+    register const RGBA *inp;
+    register unsigned outp;
+    register unsigned d;
+    // the pixels go 0 1 2 3 0 1 2 3, so we can't afford switching planes every pixel
+    // instead we go (switch) 0 0 0 ... (switch) 1 1 1 ...
+    for (unsigned plane = 0; plane < 4; ++plane) {
+        outportb(REG_VALUE, 1 << plane);
+        for (register unsigned x = plane; x < SCREEN_WIDTH; x += 4) {
+            inp = (RGBA *)(GFX_BUFFER + x);
+            // target pixel is at VGAMEM[(y << 4) + (y << 6) + (x >> 2)]
+            // calculate the x part and then just add 16 + 64 until bottom
+            outp = VGA_BASE + (x >> 2);
+            for (register unsigned y = 0; y < SCREEN_HEIGHT_X; ++y, inp += SCREEN_WIDTH, outp += (1 << 4) + (1 << 6)) {
+                d = (dit_kernel[y&7][x&7] & (0x3F - (0x3F >> DIT_BITS))) << 2;
+                _farnspokeb(outp, rgbconv[2][inp->r][d] + rgbconv[1][inp->g][d] + rgbconv[0][inp->b][d]);
+            }
+        }
+    }
+}
+
+static inline void gfx_dos_swap_buffers_mode13(void) {
+    register const RGBA *inp = (RGBA *)GFX_BUFFER;
+    register unsigned outp = VGA_BASE;
+    register unsigned d;
+    for (register unsigned y = 0; y < SCREEN_HEIGHT; ++y) {
+        for (register unsigned x = 0; x < SCREEN_WIDTH; ++x, ++inp, ++outp) {
+            d = (dit_kernel[y&7][x&7] & (0x3F - (0x3F >> DIT_BITS))) << 2;
+            _farnspokeb(outp, rgbconv[2][inp->r][d] + rgbconv[1][inp->g][d] + rgbconv[0][inp->b][d]);
+        }
+    }
 }
 
 #endif // ENABLE_FXMESA
 
 #define FRAMETIME 33
-#define FRAMESKIP 33
 
 static bool init_done = false;
 static bool do_render = true;
@@ -205,7 +250,7 @@ static void gfx_dos_main_loop(void (*run_one_game_iter)(void)) {
     const uint32_t frames = now - last;
     if (frames) {
         // catch up but skip the first FRAMESKIP frames
-        int skip = (frames > FRAMESKIP) ? FRAMESKIP : (frames - 1);
+        int skip = (frames > configFrameskip) ? configFrameskip : (frames - 1);
         for (uint32_t f = 0; f < frames; ++f, --skip) {
             do_render = (skip <= 0);
             run_one_game_iter();
@@ -215,8 +260,8 @@ static void gfx_dos_main_loop(void (*run_one_game_iter)(void)) {
 }
 
 static void gfx_dos_get_dimensions(uint32_t *width, uint32_t *height) {
-    *width = SCREEN_WIDTH;
-    *height = SCREEN_HEIGHT;
+    *width = configScreenWidth;
+    *height = configScreenHeight;
 }
 
 static void gfx_dos_handle_events(void) { }
@@ -229,20 +274,12 @@ static void gfx_dos_swap_buffers_begin(void) {
 #ifdef ENABLE_DMESA
     DMesaSwapBuffers(db);
 #else
-    if (osmesa_buffer != NULL) {
+    if (GFX_BUFFER != NULL) {
         _farsetsel(_dos_ds);
-
-        // convert/dither RGBA result into palettized 8 bit
-        for (unsigned y = 0; y < SCREEN_HEIGHT; ++y) {
-            for (unsigned p = y * SCREEN_WIDTH, x = 0; x < SCREEN_WIDTH; ++x, ++p) {
-                unsigned rgb = osmesa_buffer[p], d = dit_kernel[y&7][x&7]; // 0..63
-                d = (d & (0x3F - (0x3F >> DIT_BITS))) << 2;
-                _farnspokeb(VGA_BASE + p,
-                    rgbconv[2][(rgb >> 0) & 0xFF][d]
-                  + rgbconv[1][(rgb >> 8) & 0xFF][d]
-                  + rgbconv[0][(rgb >>16) & 0xFF][d]);
-            }
-        }
+        if (configScreenHeight == SCREEN_HEIGHT_X)
+            gfx_dos_swap_buffers_modex();
+        else
+            gfx_dos_swap_buffers_mode13();
     }
 #endif
 }

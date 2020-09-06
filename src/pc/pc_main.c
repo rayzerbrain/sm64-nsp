@@ -11,6 +11,7 @@
 
 #include "gfx/gfx_pc.h"
 #include "gfx/gfx_opengl.h"
+#include "gfx/gfx_soft.h"
 #include "gfx/gfx_direct3d11.h"
 #include "gfx/gfx_direct3d12.h"
 #include "gfx/gfx_dos_api.h"
@@ -170,6 +171,15 @@ void main_func(void) {
     #else
         wm_api = &gfx_sdl;
     #endif
+#elif defined(ENABLE_SOFTRAST)
+    rendering_api = &gfx_soft_api;
+    #if defined(TARGET_DOS)
+        wm_api = &gfx_dos_api;
+    #else
+        wm_api = &gfx_sdl;
+    #endif
+#else
+    #error Could not pick rendering API!
 #endif
 
     gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);

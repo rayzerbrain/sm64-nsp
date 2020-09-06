@@ -1,10 +1,16 @@
 #ifndef CONFIGFILE_H
 #define CONFIGFILE_H
 
+#include <stdbool.h>
+
 extern bool         configFullscreen;
 extern bool         configDrawSky;
 extern bool         configFiltering;
 extern bool         configEnableSound;
+extern bool         configEnableFog;
+extern unsigned int configFrameskip;
+extern unsigned int configScreenWidth;
+extern unsigned int configScreenHeight;
 extern unsigned int configKeyA;
 extern unsigned int configKeyB;
 extern unsigned int configKeyStart;

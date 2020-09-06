@@ -25,8 +25,17 @@ TARGET_WEB ?= 0
 TARGET_DOS ?= 1
 # Compiler to use (ido or gcc)
 COMPILER ?= ido
+
+# DirectX11
+ENABLE_DX11 ?= 0
+# DirectX12
+ENABLE_DX12 ?= 0
+# GL2.1 / GLES2
+ENABLE_OPENGL ?= 0
 # Legacy OGL
 ENABLE_OPENGL_LEGACY ?= 0
+# Software rasterizer
+ENABLE_SOFTRAST ?= 0
 # Pick GL backend for DOS: osmesa, dmesa
 DOS_GL := osmesa
 
@@ -49,16 +58,12 @@ ifeq ($(TARGET_N64),0)
 
   ifeq ($(TARGET_WINDOWS),1)
     # On Windows, default to DirectX 11
-    ifneq ($(ENABLE_OPENGL),1)
-      ifneq ($(ENABLE_DX12),1)
-        ENABLE_DX11 ?= 1
-      endif
+    ifeq ($(ENABLE_OPENGL)$(ENABLE_OPENGL_LEGACY)$(ENABLE_DX12)$(ENABLE_SOFTRAST),0000)
+      ENABLE_DX11 ?= 1
     endif
-  else
-    ifeq ($(ENABLE_OPENGL_LEGACY),0)
-      # On others, default to OpenGL
-      ENABLE_OPENGL ?= 1
-    endif
+  else ifeq ($(ENABLE_OPENGL_LEGACY)$(ENABLE_SOFTRAST),00)
+    # On others, default to OpenGL
+    ENABLE_OPENGL ?= 1
   endif
 
   # Sanity checks
@@ -67,6 +72,9 @@ ifeq ($(TARGET_N64),0)
       $(error The DirectX 11 backend is only supported on Windows)
     endif
     ifeq ($(ENABLE_OPENGL),1)
+      $(error Cannot specify multiple graphics backends)
+    endif
+    ifeq ($(ENABLE_OPENGL_LEGACY),1)
       $(error Cannot specify multiple graphics backends)
     endif
     ifeq ($(ENABLE_DX12),1)
@@ -80,11 +88,27 @@ ifeq ($(TARGET_N64),0)
     ifeq ($(ENABLE_OPENGL),1)
       $(error Cannot specify multiple graphics backends)
     endif
+    ifeq ($(ENABLE_OPENGL_LEGACY),1)
+      $(error Cannot specify multiple graphics backends)
+    endif
     ifeq ($(ENABLE_DX11),1)
       $(error Cannot specify multiple graphics backends)
     endif
   endif
-
+  ifeq ($(ENABLE_SOFTRAST),1)
+    ifeq ($(ENABLE_OPENGL),1)
+      $(error Cannot specify multiple graphics backends)
+    endif
+    ifeq ($(ENABLE_OPENGL_LEGACY),1)
+      $(error Cannot specify multiple graphics backends)
+    endif
+    ifeq ($(ENABLE_DX11),1)
+      $(error Cannot specify multiple graphics backends)
+    endif
+    ifeq ($(ENABLE_DX12),1)
+      $(error Cannot specify multiple graphics backends)
+    endif
+  endif
 endif
 
 ifeq ($(COMPILER),gcc)
@@ -270,7 +294,7 @@ else
 ifeq ($(VERSION),sh)
   OPT_FLAGS := -O2
 else
-  OPT_FLAGS := -g
+  OPT_FLAGS := -O2 -g3
 endif
 endif
 
@@ -282,6 +306,8 @@ endif
 else
 ifeq ($(TARGET_WEB),1)
   OPT_FLAGS := -O2 -g4 --source-map-base http://localhost:8080/
+else ifeq ($(DEBUG),1)
+  OPT_FLAGS := -g
 else
   OPT_FLAGS := -Ofast -ffast-math
 endif
@@ -486,20 +512,35 @@ ifeq ($(TARGET_WEB),1)
   PLATFORM_LDFLAGS := -lm -no-pie -s TOTAL_MEMORY=20MB -g4 --source-map-base http://localhost:8080/ -s "EXTRA_EXPORTED_RUNTIME_METHODS=['callMain']"
 endif
 ifeq ($(TARGET_DOS),1)
-  PLATFORM_CFLAGS  := -DTARGET_DOS -std=gnu99 -nostdlib -m32 -march=i586 -mtune=pentium -ffreestanding -fgnu89-inline -Iinclude/$(DOS_GL)
-  PLATFORM_LDFLAGS := -lm -no-pie -Llib/$(DOS_GL) -lgl -Llib/allegro -lalleg
-  ifeq ($(DOS_GL),dmesa)
-    PLATFORM_CFLAGS += -Iinclude/glide3 -DENABLE_DMESA
-    PLATFORM_LDFLAGS += -Llib/glide3 -lglide3i
-  endif
+  PLATFORM_CFLAGS  := -DTARGET_DOS -std=gnu99 -nostdlib -m32 -march=i586 -mtune=pentium-mmx -mmmx -ffreestanding -fgnu89-inline
+  PLATFORM_LDFLAGS := -lm -no-pie -Llib/allegro -lalleg
 endif
 
-PLATFORM_CFLAGS += -DNO_SEGMENTED_MEMORY
+PLATFORM_CFLAGS += -DNO_SEGMENTED_MEMORY -Wfatal-errors
 
 # Compiler and linker flags for graphics backend
 ifeq ($(ENABLE_OPENGL),1)
   GFX_CFLAGS  := -DENABLE_OPENGL
   GFX_LDFLAGS :=
+endif
+ifeq ($(ENABLE_DX11),1)
+  GFX_CFLAGS := -DENABLE_DX11
+  PLATFORM_LDFLAGS += -lgdi32 -static
+endif
+ifeq ($(ENABLE_DX12),1)
+  GFX_CFLAGS := -DENABLE_DX12
+  PLATFORM_LDFLAGS += -lgdi32 -static
+endif
+ifeq ($(ENABLE_SOFTRAST),1)
+  GFX_CFLAGS := -DENABLE_SOFTRAST
+  GFX_LDFLAGS :=
+endif
+ifeq ($(ENABLE_OPENGL_LEGACY),1)
+  GFX_CFLAGS  := -DENABLE_OPENGL_LEGACY
+  GFX_LDFLAGS :=
+endif
+
+ifneq ($(ENABLE_OPENGL)$(ENABLE_OPENGL_LEGACY),00)
   ifeq ($(TARGET_WINDOWS),1)
     GFX_CFLAGS  += $(shell sdl2-config --cflags) -DGLEW_STATIC
     GFX_LDFLAGS += $(shell sdl2-config --libs) -lglew32 -lopengl32 -lwinmm -limm32 -lversion -loleaut32 -lsetupapi
@@ -512,19 +553,30 @@ ifeq ($(ENABLE_OPENGL),1)
     GFX_CFLAGS  += -s USE_SDL=2
     GFX_LDFLAGS += -lGL -lSDL2
   endif
-endif
-ifeq ($(ENABLE_DX11),1)
-  GFX_CFLAGS := -DENABLE_DX11
-  PLATFORM_LDFLAGS += -lgdi32 -static
-endif
-ifeq ($(ENABLE_DX12),1)
-  GFX_CFLAGS := -DENABLE_DX12
-  PLATFORM_LDFLAGS += -lgdi32 -static
-endif
-
-ifeq ($(ENABLE_OPENGL_LEGACY),1)
-  GFX_CFLAGS  := -DENABLE_OPENGL_LEGACY
-  GFX_LDFLAGS :=
+  ifeq ($(TARGET_DOS),1)
+    ifeq ($(DOS_GL),dmesa)
+      GFX_CFLAGS += -Iinclude/glide3 -Iinclude/dmesa -DENABLE_DMESA
+      GFX_LDFLAGS += -Llib/dmesa -lgl -Llib/glide3 -lglide3i
+    else ifeq ($(DOS_GL),osmesa)
+      GFX_CFLAGS += -Iinclude/osmesa -DENABLE_OSMESA
+      GFX_LDFLAGS += -Llib/osmesa -lgl
+    else
+      $(error OpenGL enabled, but no correct DOS_GL value specified (osmesa, dmesa))
+    endif
+  endif
+else ifeq ($(ENABLE_SOFTRAST),1)
+  ifeq ($(TARGET_WINDOWS),1)
+    GFX_CFLAGS  += $(shell sdl2-config --cflags)
+    GFX_LDFLAGS += $(shell sdl2-config --libs)
+  endif
+  ifeq ($(TARGET_LINUX),1)
+    GFX_CFLAGS  += $(shell sdl2-config --cflags)
+    GFX_LDFLAGS += $(shell sdl2-config --libs) -lX11 -lXrandr
+  endif
+  ifeq ($(TARGET_WEB),1)
+    GFX_CFLAGS  += -s USE_SDL=2
+    GFX_LDFLAGS += -lSDL2
+  endif
 endif
 
 GFX_CFLAGS += -DWIDESCREEN

@@ -30,6 +30,9 @@ struct GfxRenderingAPI {
     void (*start_frame)(void);
     void (*end_frame)(void);
     void (*finish_render)(void);
+    void (*fill_rect)(int x0, int y0, int x1, int y1, const uint8_t *rgba); // optional; fill 2d rect with color
+    void (*tex_rect)(int x0, int y0, int x1, int y1, const float u0, const float v0, const float dudx, const float dvdy, const uint8_t *rgba); // optional; draw 2d rect textured with tile 0
+    void (*set_fog_color)(const uint8_t *rgb); // optional; set global fog color
     void (*shutdown)(void); // optional
 };
 
