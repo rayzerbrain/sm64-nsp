@@ -12,7 +12,7 @@
 
 #ifndef TARGET_N64
 # include "pc/configfile.h"
-# ifndef TARGET_DOS
+# if !defined(TARGET_DOS) && !defined(ENABLE_SOFTRAST)
 #  define BETTER_SKYBOX_POSITION_PRECISION
 # endif
 #endif
