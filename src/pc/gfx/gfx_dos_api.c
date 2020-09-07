@@ -208,7 +208,13 @@ static inline void gfx_dos_swap_buffers_mode13(void) {
 
 #endif // ENABLE_FXMESA
 
-#define FRAMETIME 33
+#ifdef VERSION_EU
+# define FRAMERATE 25
+# define FRAMETIME 40
+#else
+# define FRAMERATE 30
+# define FRAMETIME 33
+#endif
 
 static bool init_done = false;
 static bool do_render = true;

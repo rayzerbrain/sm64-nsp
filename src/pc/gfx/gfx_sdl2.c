@@ -28,16 +28,11 @@
 #include "gfx_window_manager_api.h"
 #include "gfx_screen_config.h"
 
-static SDL_Window *wnd;
-static int inverted_scancode_table[512];
-static int vsync_enabled = 0;
-static unsigned int window_width = DESIRED_SCREEN_WIDTH;
-static unsigned int window_height = DESIRED_SCREEN_HEIGHT;
-static bool fullscreen_state;
-static void (*on_fullscreen_changed_callback)(bool is_now_fullscreen);
-static bool (*on_key_down_callback)(int scancode);
-static bool (*on_key_up_callback)(int scancode);
-static void (*on_all_keys_up_callback)(void);
+#ifdef VERSION_EU
+# define FRAMERATE 25
+#else
+# define FRAMERATE 30
+#endif
 
 #ifdef ENABLE_SOFTRAST
 #define GFX_API_NAME "SDL2 - Software"
@@ -49,9 +44,23 @@ static SDL_Texture *texture = NULL;
 #define GFX_API_NAME "SDL2 - OpenGL"
 #endif
 
+static SDL_Window *wnd;
+static int inverted_scancode_table[512];
+static int vsync_enabled = 0;
+static unsigned int window_width = DESIRED_SCREEN_WIDTH;
+static unsigned int window_height = DESIRED_SCREEN_HEIGHT;
+static bool fullscreen_state;
+static void (*on_fullscreen_changed_callback)(bool is_now_fullscreen);
+static bool (*on_key_down_callback)(int scancode);
+static bool (*on_key_up_callback)(int scancode);
+static void (*on_all_keys_up_callback)(void);
+
+// time between consequtive game frames
+const int frame_time = 1000 / FRAMERATE;
+
+// fps stats tracking
 static int f_frames = 0;
 static double f_time = 0.0;
-static Uint32 last_time;
 
 const SDL_Scancode windows_scancode_table[] =
 {
@@ -210,7 +219,7 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
         puts("Warning: VSync is not enabled or not working. Falling back to timer for synchronization");
 #endif
 
-    f_time = last_time = SDL_GetTicks();
+    f_time = SDL_GetTicks();
 
     for (size_t i = 0; i < sizeof(windows_scancode_table) / sizeof(SDL_Scancode); i++) {
         inverted_scancode_table[windows_scancode_table[i]] = i;
@@ -313,13 +322,13 @@ static bool gfx_sdl_start_frame(void) {
 }
 
 static void sync_framerate_with_timer(void) {
-    // Number of milliseconds a frame should take (30 fps)
-    const Uint32 FRAME_TIME = 1000 / 30;
-    Uint32 elapsed = SDL_GetTicks() - last_time;
-
-    if (elapsed < FRAME_TIME)
-        SDL_Delay(FRAME_TIME - elapsed);
-    last_time += FRAME_TIME;
+    static Uint32 last_time = 0;
+    // get base timestamp on the first frame (might be different from 0)
+    if (last_time == 0) last_time = SDL_GetTicks();
+    const int elapsed = SDL_GetTicks() - last_time;
+    if (elapsed < frame_time)
+        SDL_Delay(frame_time - elapsed);
+    last_time += frame_time;
 }
 
 static void gfx_sdl_swap_buffers_begin(void) {
