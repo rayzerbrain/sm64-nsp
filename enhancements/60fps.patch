@@ -607,6 +607,19 @@ index 7a83b53..f4acc2d 100644
  };
  
  extern s8 gEnvFxMode;
+diff --git a/src/game/game_init.h b/src/game/game_init.h
+index 4384cbc..59c5bdd 100644
+--- a/src/game/game_init.h
++++ b/src/game/game_init.h
+@@ -9,7 +9,7 @@
+ #include "types.h"
+ #include "memory.h"
+ 
+-#define GFX_POOL_SIZE 6400
++#define GFX_POOL_SIZE 64000
+ 
+ struct GfxPool {
+     Gfx buffer[GFX_POOL_SIZE];
 diff --git a/src/game/hud.c b/src/game/hud.c
 index 8d4daa5..7ce2b22 100644
 --- a/src/game/hud.c
