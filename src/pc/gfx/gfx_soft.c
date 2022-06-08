@@ -996,6 +996,10 @@ static void gfx_soft_init(void) {
 
 static void gfx_soft_start_frame(void) {
     // depth_swap(); // FIXME: ztrick
+    // HACK: clear screen before drawing when there's no skybox
+    extern int sSkyboxEmpty;
+    if (sSkyboxEmpty)
+        color_clear();
     depth_clear();
 }
 

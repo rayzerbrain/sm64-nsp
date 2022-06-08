@@ -99,6 +99,8 @@ SkyboxTexture *sSkyboxTextures[10] = {
     &bits_skybox_ptrlist,
 };
 
+int sSkyboxEmpty = 0;
+
 /**
  * The skybox color mask.
  * The final color of each pixel is computed from the bitwise AND of the color and the texture.
@@ -307,8 +309,11 @@ Gfx *init_skybox_display_list(s8 player, s8 background, s8 colorIndex) {
     Gfx *dlist = skybox;
 
     if (!configDrawSky || skybox == NULL) {
+        sSkyboxEmpty = TRUE;
         return NULL;
     } else {
+        sSkyboxEmpty = FALSE;
+
         Mtx *ortho = create_skybox_ortho_matrix(player);
 
         gSPDisplayList(dlist++, dl_skybox_begin);
