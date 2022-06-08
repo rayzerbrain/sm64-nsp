@@ -883,19 +883,19 @@ static void gfx_soft_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_t 
 }
 
 static void gfx_soft_fill_rect(int x0, int y0, int x1, int y1, const uint8_t *rgba) {
-    const Color4 color = *(Color4 *)rgba;
+    // HACK: these are mainly used just to clear the screen and draw simple rects, so we ignore drawmode stuff and Z
     x0 = imax(0, x0);
     y0 = imax(0, y0);
     x1 = imin(scr_width, x1);
     y1 = imin(scr_height, y1);
-    gfx_soft_pick_draw_func();
-    register int base = (scr_height - y0 - 1) * scr_width + x0;
-    register int idx;
+    register const uint32_t color = *(uint32_t *)rgba;
+    register uint32_t *base = gfx_output + y0 * scr_width + x0;
+    register uint32_t *p;
     register int x, y;
-    for (y = y0; y < y1; ++y, base -= scr_width) {
-        idx = base;
-        for (x = x0; x < x1; ++x, ++idx)
-            draw_fn(idx, 0, color);
+    for (y = y0; y < y1; ++y, base += scr_width) {
+        p = base;
+        for (x = x0; x < x1; ++x, ++p)
+            *p = color;
     }
 }
 
@@ -996,10 +996,6 @@ static void gfx_soft_init(void) {
 
 static void gfx_soft_start_frame(void) {
     // depth_swap(); // FIXME: ztrick
-    // HACK: clear screen before drawing when there's no skybox
-    extern int sSkyboxEmpty;
-    if (sSkyboxEmpty)
-        color_clear();
     depth_clear();
 }
 

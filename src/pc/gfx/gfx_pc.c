@@ -1523,7 +1523,7 @@ static void gfx_dp_fill_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t
         lrxf = HALF_SCREEN_WIDTH + gfx_adjust_x_for_aspect_ratio(lrxf / 4.0f - HALF_SCREEN_WIDTH);
         ulyf = ulyf / 4.0f;
         lryf = lryf / 4.0f;
-        gfx_rapi->fill_rect(ulxf, lryf, lrxf, ulyf, &rdp.fill_color.r);
+        gfx_rapi->fill_rect(ulxf, ulyf, lrxf, lryf, &rdp.fill_color.r);
     } else {
         for (int i = MAX_VERTICES; i < MAX_VERTICES + 4; i++) {
             struct LoadedVertex* v = &rsp.loaded_vertices[i];
