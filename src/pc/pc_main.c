@@ -10,14 +10,8 @@
 #include "audio/external.h"
 
 #include "gfx/gfx_pc.h"
-#include "gfx/gfx_opengl.h"
 #include "gfx/gfx_soft.h"
-#include "gfx/gfx_direct3d11.h"
-#include "gfx/gfx_direct3d12.h"
-#include "gfx/gfx_dos_api.h"
-#include "gfx/gfx_dxgi.h"
-#include "gfx/gfx_glx.h"
-#include "gfx/gfx_sdl.h"
+#include "gfx/gfx_nsp.h"
 
 #include "audio/audio_api.h"
 #include "audio/audio_sb16.h"
@@ -26,8 +20,6 @@
 #include "audio/audio_alsa.h"
 #include "audio/audio_sdl.h"
 #include "audio/audio_null.h"
-
-#include "controller/controller_keyboard.h"
 
 #include "configfile.h"
 
@@ -81,17 +73,8 @@ void send_display_list(struct SPTask *spTask) {
 
 void produce_one_frame(void) {
     gfx_start_frame();
-    game_loop_one_iteration();
 
-    if (configEnableSound) {
-        int samples_left = audio_api->buffered();
-        u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? SAMPLES_HIGH : SAMPLES_LOW;
-        s16 audio_buffer[SAMPLES_HIGH * 2 * 2];
-        for (int i = 0; i < 2; i++) {
-            create_next_audio_buffer(audio_buffer + i * (num_audio_samples * 2), num_audio_samples);
-        }
-        audio_api->play((u8 *)audio_buffer, 2 * num_audio_samples * 4);
-    }
+    game_loop_one_iteration();
 
     gfx_end_frame();
 }
@@ -144,43 +127,14 @@ void game_exit(void) {
 }
 
 void main_func(void) {
-    static u64 pool[0x165000/8 / 4 * sizeof(void *)];
+    static u64 pool[0x165000 / 8 / 4 * sizeof(void *)];
     main_pool_init(pool, pool + sizeof(pool) / sizeof(pool[0]));
     gEffectsMemoryPool = mem_pool_init(0x4000, MEMORY_POOL_LEFT);
 
     configfile_load(CONFIG_FILE);
     atexit(save_config);
 
-#ifdef TARGET_WEB
-    emscripten_set_main_loop(em_main_loop, 0, 0);
-    request_anim_frame(on_anim_frame);
-#endif
-
-#if defined(ENABLE_DX12)
-    rendering_api = &gfx_direct3d12_api;
-    wm_api = &gfx_dxgi_api;
-#elif defined(ENABLE_DX11)
-    rendering_api = &gfx_direct3d11_api;
-    wm_api = &gfx_dxgi_api;
-#elif defined(ENABLE_OPENGL) || defined(ENABLE_OPENGL_LEGACY)
-    rendering_api = &gfx_opengl_api;
-    #if defined(__linux__) || defined(__BSD__)
-        wm_api = &gfx_glx;
-    #elif defined(TARGET_DOS)
-        wm_api = &gfx_dos_api;
-    #else
-        wm_api = &gfx_sdl;
-    #endif
-#elif defined(ENABLE_SOFTRAST)
-    rendering_api = &gfx_soft_api;
-    #if defined(TARGET_DOS)
-        wm_api = &gfx_dos_api;
-    #else
-        wm_api = &gfx_sdl;
-    #endif
-#else
-    #error Could not pick rendering API!
-#endif
+    wm_api = &gfx_nsp_api;
 
     gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
 
@@ -216,9 +170,6 @@ void main_func(void) {
         audio_api = &audio_null;
     }
 
-    wm_api->set_fullscreen_changed_callback(on_fullscreen_changed);
-    wm_api->set_keyboard_callbacks(keyboard_on_key_down, keyboard_on_key_up, keyboard_on_all_keys_up);
-
     audio_init();
     sound_init();
 
@@ -230,21 +181,13 @@ void main_func(void) {
     inited = 1;
 #else
     inited = 1;
-    while (1) {
-        wm_api->main_loop(produce_one_frame);
-    }
+    wm_api->main_loop(produce_one_frame);
 #endif
 }
 
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-int WINAPI WinMain(UNUSED HINSTANCE hInstance, UNUSED HINSTANCE hPrevInstance, UNUSED LPSTR pCmdLine, UNUSED int nCmdShow) {
-    main_func();
-    return 0;
-}
-#else
 int main(UNUSED int argc, UNUSED char *argv[]) {
-    main_func();
+    //main_func();
+    //malloc(5 * sizeof(uint16_t));
+    printf("%d", sizeof(void *));
     return 0;
 }
-#endif

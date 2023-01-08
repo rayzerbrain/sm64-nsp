@@ -30,12 +30,12 @@ struct ConfigOption {
  *Config options and default values
  */
 bool configFullscreen            = false;
-bool configDrawSky               = true;
-bool configFiltering             = true;
+bool configDrawSky               = false;
+bool configFiltering             = false;
 bool configEnableSound           = false;
-bool configEnableFog             = true;
-unsigned int configScreenWidth   = 640;
-unsigned int configScreenHeight  = 480;
+bool configEnableFog             = false;
+unsigned int configScreenWidth   = 320;
+unsigned int configScreenHeight  = 240;
 unsigned int configFrameskip     = 30;
 // Keyboard mappings (scancode values)
 #ifdef TARGET_DOS

@@ -76,3 +76,5 @@ SM64CONF.TXT
 !/sound/**/*custom*/**/*.aiff
 !/assets/**/*custom*.bin
 !/assets/**/*custom*/**/*.bin
+
+*.vs

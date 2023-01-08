@@ -14,17 +14,21 @@ VERSION ?= us
 # Graphics microcode used
 GRUCODE ?= f3d_old
 # If COMPARE is 1, check the output sha1sum when building 'all'
-COMPARE ?= 1
+COMPARE ?= 0
 # If NON_MATCHING is 1, define the NON_MATCHING and AVOID_UB macros when building (recommended)
-NON_MATCHING ?= 0
+NON_MATCHING ?= 1
 # Build for the N64 (turn this off for ports)
 TARGET_N64 ?= 0
 # Build for Emscripten/WebGL
 TARGET_WEB ?= 0
 # Build for DOS
-TARGET_DOS ?= 1
+TARGET_DOS ?= 0
+
+# NSP
+TARGET_NSP ?= 1
+
 # Compiler to use (ido or gcc)
-COMPILER ?= ido
+COMPILER ?= gcc
 
 # DirectX11
 ENABLE_DX11 ?= 0
@@ -35,7 +39,7 @@ ENABLE_OPENGL ?= 0
 # Legacy OGL
 ENABLE_OPENGL_LEGACY ?= 0
 # Software rasterizer
-ENABLE_SOFTRAST ?= 0
+ENABLE_SOFTRAST ?= 1
 # Pick GL backend for DOS: osmesa, dmesa
 DOS_GL := osmesa
 
@@ -46,68 +50,68 @@ ifeq ($(TARGET_N64),0)
   GRUCODE := f3dex2e
   TARGET_WINDOWS := 0
   ifeq ($(TARGET_WEB),0)
-    ifeq ($(TARGET_DOS),0)
-      ifeq ($(OS),Windows_NT)
-        TARGET_WINDOWS := 1
-      else
-        # TODO: Detect Mac OS X, BSD, etc. For now, assume Linux
-        TARGET_LINUX := 1
-      endif
-    endif
+	ifeq ($(TARGET_DOS),0)
+	  ifeq ($(OS),Windows_NT)
+		TARGET_WINDOWS := 1
+	  else
+		# TODO: Detect Mac OS X, BSD, etc. For now, assume Linux
+		TARGET_LINUX := 1
+	  endif
+	endif
   endif
 
   ifeq ($(TARGET_WINDOWS),1)
-    # On Windows, default to DirectX 11
-    ifeq ($(ENABLE_OPENGL)$(ENABLE_OPENGL_LEGACY)$(ENABLE_DX12)$(ENABLE_SOFTRAST),0000)
-      ENABLE_DX11 ?= 1
-    endif
+	# On Windows, default to DirectX 11
+	ifeq ($(ENABLE_OPENGL)$(ENABLE_OPENGL_LEGACY)$(ENABLE_DX12)$(ENABLE_SOFTRAST),0000)
+	  ENABLE_DX11 ?= 1
+	endif
   else ifeq ($(ENABLE_OPENGL_LEGACY)$(ENABLE_SOFTRAST),00)
-    # On others, default to OpenGL
-    ENABLE_OPENGL ?= 1
+	# On others, default to OpenGL
+	ENABLE_OPENGL ?= 1
   endif
 
   # Sanity checks
   ifeq ($(ENABLE_DX11),1)
-    ifneq ($(TARGET_WINDOWS),1)
-      $(error The DirectX 11 backend is only supported on Windows)
-    endif
-    ifeq ($(ENABLE_OPENGL),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
-    ifeq ($(ENABLE_OPENGL_LEGACY),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
-    ifeq ($(ENABLE_DX12),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
+	ifneq ($(TARGET_WINDOWS),1)
+	  $(error The DirectX 11 backend is only supported on Windows)
+	endif
+	ifeq ($(ENABLE_OPENGL),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
+	ifeq ($(ENABLE_OPENGL_LEGACY),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
+	ifeq ($(ENABLE_DX12),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
   endif
   ifeq ($(ENABLE_DX12),1)
-    ifneq ($(TARGET_WINDOWS),1)
-      $(error The DirectX 12 backend is only supported on Windows)
-    endif
-    ifeq ($(ENABLE_OPENGL),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
-    ifeq ($(ENABLE_OPENGL_LEGACY),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
-    ifeq ($(ENABLE_DX11),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
+	ifneq ($(TARGET_WINDOWS),1)
+	  $(error The DirectX 12 backend is only supported on Windows)
+	endif
+	ifeq ($(ENABLE_OPENGL),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
+	ifeq ($(ENABLE_OPENGL_LEGACY),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
+	ifeq ($(ENABLE_DX11),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
   endif
   ifeq ($(ENABLE_SOFTRAST),1)
-    ifeq ($(ENABLE_OPENGL),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
-    ifeq ($(ENABLE_OPENGL_LEGACY),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
-    ifeq ($(ENABLE_DX11),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
-    ifeq ($(ENABLE_DX12),1)
-      $(error Cannot specify multiple graphics backends)
-    endif
+	ifeq ($(ENABLE_OPENGL),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
+	ifeq ($(ENABLE_OPENGL_LEGACY),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
+	ifeq ($(ENABLE_DX11),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
+	ifeq ($(ENABLE_DX12),1)
+	  $(error Cannot specify multiple graphics backends)
+	endif
   endif
 endif
 
@@ -144,7 +148,7 @@ endif
 
 TARGET := sm64.$(VERSION)
 VERSION_CFLAGS := -D$(VERSION_DEF)
-VERSION_ASFLAGS := --defsym $(VERSION_DEF)=1
+VERSION_ASFLAGS := #-D$(VERSION_DEF)=1
 
 # Microcode
 
@@ -228,10 +232,10 @@ else
 ifeq ($(TARGET_WEB),1)
   BUILD_DIR := $(BUILD_DIR_BASE)/$(VERSION)_web
 else
-  ifeq ($(TARGET_DOS),1)
-    BUILD_DIR := $(BUILD_DIR_BASE)/$(VERSION)_dos
+  ifeq ($(TARGET_NSP),1)
+	BUILD_DIR := $(BUILD_DIR_BASE)/$(VERSION)_nsp
   else
-    BUILD_DIR := $(BUILD_DIR_BASE)/$(VERSION)_pc
+	BUILD_DIR := $(BUILD_DIR_BASE)/$(VERSION)_pc
   endif
 endif
 endif
@@ -241,13 +245,13 @@ ifeq ($(TARGET_WEB),1)
 EXE := $(BUILD_DIR)/$(TARGET).html
 else
   ifeq ($(TARGET_WINDOWS),1)
-    EXE := $(BUILD_DIR)/$(TARGET).exe
+	EXE := $(BUILD_DIR)/$(TARGET).exe
   else
-    ifeq ($(TARGET_DOS),1)
-      EXE := $(BUILD_DIR)/$(TARGET).exe
-    else
-      EXE := $(BUILD_DIR)/$(TARGET)
-    endif
+	ifeq ($(TARGET_DOS),1)
+	  EXE := $(BUILD_DIR)/$(TARGET).exe
+	else
+	  EXE := $(BUILD_DIR)/$(TARGET)
+	endif
   endif
 endif
 ROM := $(BUILD_DIR)/$(TARGET).z64
@@ -300,7 +304,7 @@ endif
 
   # Use a default opt flag for gcc
   ifeq ($(COMPILER),gcc)
-    OPT_FLAGS := -O2
+	OPT_FLAGS := -O2
   endif
 
 else
@@ -335,15 +339,15 @@ endif
 
 ifneq ($(TARGET_N64),1)
   ULTRA_C_FILES := \
-    alBnkfNew.c \
-    guLookAtRef.c \
-    guMtxF2L.c \
-    guNormalize.c \
-    guOrthoF.c \
-    guPerspectiveF.c \
-    guRotateF.c \
-    guScaleF.c \
-    guTranslateF.c
+	alBnkfNew.c \
+	guLookAtRef.c \
+	guMtxF2L.c \
+	guNormalize.c \
+	guOrthoF.c \
+	guPerspectiveF.c \
+	guRotateF.c \
+	guScaleF.c \
+	guTranslateF.c
 
   C_FILES := $(filter-out src/game/main.c,$(C_FILES))
   ULTRA_C_FILES := $(addprefix lib/src/,$(ULTRA_C_FILES))
@@ -352,15 +356,15 @@ endif
 ifeq ($(VERSION),sh)
 SOUND_BANK_FILES := $(wildcard sound/sound_banks/*.json)
 SOUND_SEQUENCE_FILES := $(wildcard sound/sequences/jp/*.m64) \
-    $(wildcard sound/sequences/*.m64) \
-    $(foreach file,$(wildcard sound/sequences/jp/*.s),$(BUILD_DIR)/$(file:.s=.m64)) \
-    $(foreach file,$(wildcard sound/sequences/*.s),$(BUILD_DIR)/$(file:.s=.m64))
+	$(wildcard sound/sequences/*.m64) \
+	$(foreach file,$(wildcard sound/sequences/jp/*.s),$(BUILD_DIR)/$(file:.s=.m64)) \
+	$(foreach file,$(wildcard sound/sequences/*.s),$(BUILD_DIR)/$(file:.s=.m64))
 else
 SOUND_BANK_FILES := $(wildcard sound/sound_banks/*.json)
 SOUND_SEQUENCE_FILES := $(wildcard sound/sequences/$(VERSION)/*.m64) \
-    $(wildcard sound/sequences/*.m64) \
-    $(foreach file,$(wildcard sound/sequences/$(VERSION)/*.s),$(BUILD_DIR)/$(file:.s=.m64)) \
-    $(foreach file,$(wildcard sound/sequences/*.s),$(BUILD_DIR)/$(file:.s=.m64))
+	$(wildcard sound/sequences/*.m64) \
+	$(foreach file,$(wildcard sound/sequences/$(VERSION)/*.s),$(BUILD_DIR)/$(file:.s=.m64)) \
+	$(foreach file,$(wildcard sound/sequences/*.s),$(BUILD_DIR)/$(file:.s=.m64))
 endif
 
 SOUND_SAMPLE_DIRS := $(wildcard sound/samples/*)
@@ -372,12 +376,12 @@ SOUND_OBJ_FILES := $(SOUND_BIN_DIR)/sound_data.o
 
 # Object files
 O_FILES := $(foreach file,$(C_FILES),$(BUILD_DIR)/$(file:.c=.o)) \
-           $(foreach file,$(CXX_FILES),$(BUILD_DIR)/$(file:.cpp=.o)) \
-           $(foreach file,$(S_FILES),$(BUILD_DIR)/$(file:.s=.o)) \
-           $(foreach file,$(GENERATED_C_FILES),$(file:.c=.o))
+		   $(foreach file,$(CXX_FILES),$(BUILD_DIR)/$(file:.cpp=.o)) \
+		   $(foreach file,$(S_FILES),$(BUILD_DIR)/$(file:.s=.o)) \
+		   $(foreach file,$(GENERATED_C_FILES),$(file:.c=.o))
 
 ULTRA_O_FILES := $(foreach file,$(ULTRA_S_FILES),$(BUILD_DIR)/$(file:.s=.o)) \
-                 $(foreach file,$(ULTRA_C_FILES),$(BUILD_DIR)/$(file:.c=.o))
+				 $(foreach file,$(ULTRA_C_FILES),$(BUILD_DIR)/$(file:.c=.o))
 
 GODDARD_O_FILES := $(foreach file,$(GODDARD_C_FILES),$(BUILD_DIR)/$(file:.c=.o))
 
@@ -412,10 +416,10 @@ endif
 # check that either QEMU_IRIX is set or qemu-irix package installed
 ifeq ($(COMPILER),ido)
   ifndef QEMU_IRIX
-    QEMU_IRIX := $(shell which qemu-irix 2>/dev/null)
-    ifeq (, $(QEMU_IRIX))
-      $(error Please install qemu-irix package or set QEMU_IRIX env var to the full qemu-irix binary path)
-    endif
+	QEMU_IRIX := $(shell which qemu-irix 2>/dev/null)
+	ifeq (, $(QEMU_IRIX))
+	  $(error Please install qemu-irix package or set QEMU_IRIX env var to the full qemu-irix binary path)
+	endif
   endif
 endif
 
@@ -485,7 +489,7 @@ endif
 CPP := cpp -P
 OBJDUMP := objdump
 OBJCOPY := objcopy
-
+# OBJCOPY RUNNING INTO ERRORS
 ifeq ($(TARGET_DOS),1)
   CPP := i586-pc-msdosdjgpp-cpp -P
   OBJDUMP := i586-pc-msdosdjgpp-objdump
@@ -494,6 +498,15 @@ ifeq ($(TARGET_DOS),1)
   CC := i586-pc-msdosdjgpp-gcc
   CXX := i586-pc-msdosdjgpp-g++
   LD := $(CXX)
+endif
+
+ifeq ($(TARGET_NSP), 1)
+  AS := arm-none-eabi-as
+  CC := nspire-gcc
+  LD := nspire-ld
+  CXX := nspire-g++
+  OBJDUMP := arm-none-eabi-objdump
+  OBJCOPY := arm-none-eabi-objcopy
 endif
 
 PYTHON := python3
@@ -516,7 +529,12 @@ ifeq ($(TARGET_DOS),1)
   PLATFORM_LDFLAGS := -lm -no-pie -Llib/allegro -lalleg
 endif
 
+ifeq ($(TARGET_NSP),1)
+	PLATFORM_CFLAGS := -DTARGET_NSP
+endif
+
 PLATFORM_CFLAGS += -DNO_SEGMENTED_MEMORY -Wfatal-errors
+PLATFORM_LDFLAGS += -lm
 
 # Compiler and linker flags for graphics backend
 ifeq ($(ENABLE_OPENGL),1)
@@ -542,47 +560,47 @@ endif
 
 ifneq ($(ENABLE_OPENGL)$(ENABLE_OPENGL_LEGACY),00)
   ifeq ($(TARGET_WINDOWS),1)
-    GFX_CFLAGS  += $(shell sdl2-config --cflags) -DGLEW_STATIC
-    GFX_LDFLAGS += $(shell sdl2-config --libs) -lglew32 -lopengl32 -lwinmm -limm32 -lversion -loleaut32 -lsetupapi
+	GFX_CFLAGS  += $(shell sdl2-config --cflags) -DGLEW_STATIC
+	GFX_LDFLAGS += $(shell sdl2-config --libs) -lglew32 -lopengl32 -lwinmm -limm32 -lversion -loleaut32 -lsetupapi
   endif
   ifeq ($(TARGET_LINUX),1)
-    GFX_CFLAGS  += $(shell sdl2-config --cflags)
-    GFX_LDFLAGS += -lGL $(shell sdl2-config --libs) -lX11 -lXrandr
+	GFX_CFLAGS  += $(shell sdl2-config --cflags)
+	GFX_LDFLAGS += -lGL $(shell sdl2-config --libs) -lX11 -lXrandr
   endif
   ifeq ($(TARGET_WEB),1)
-    GFX_CFLAGS  += -s USE_SDL=2
-    GFX_LDFLAGS += -lGL -lSDL2
+	GFX_CFLAGS  += -s USE_SDL=2
+	GFX_LDFLAGS += -lGL -lSDL2
   endif
   ifeq ($(TARGET_DOS),1)
-    ifeq ($(DOS_GL),dmesa)
-      GFX_CFLAGS += -Iinclude/glide3 -Iinclude/dmesa -DENABLE_DMESA
-      GFX_LDFLAGS += -Llib/dmesa -lgl -Llib/glide3 -lglide3i
-    else ifeq ($(DOS_GL),osmesa)
-      GFX_CFLAGS += -Iinclude/osmesa -DENABLE_OSMESA
-      GFX_LDFLAGS += -Llib/osmesa -lgl
-    else
-      $(error OpenGL enabled, but no correct DOS_GL value specified (osmesa, dmesa))
-    endif
+	ifeq ($(DOS_GL),dmesa)
+	  GFX_CFLAGS += -Iinclude/glide3 -Iinclude/dmesa -DENABLE_DMESA
+	  GFX_LDFLAGS += -Llib/dmesa -lgl -Llib/glide3 -lglide3i
+	else ifeq ($(DOS_GL),osmesa)
+	  GFX_CFLAGS += -Iinclude/osmesa -DENABLE_OSMESA
+	  GFX_LDFLAGS += -Llib/osmesa -lgl
+	else
+	  $(error OpenGL enabled, but no correct DOS_GL value specified (osmesa, dmesa))
+	endif
   endif
 else ifeq ($(ENABLE_SOFTRAST),1)
   ifeq ($(TARGET_WINDOWS),1)
-    GFX_CFLAGS  += $(shell sdl2-config --cflags)
-    GFX_LDFLAGS += $(shell sdl2-config --libs)
+	GFX_CFLAGS  += $(shell sdl2-config --cflags)
+	GFX_LDFLAGS += $(shell sdl2-config --libs)
   endif
   ifeq ($(TARGET_LINUX),1)
-    GFX_CFLAGS  += $(shell sdl2-config --cflags)
-    GFX_LDFLAGS += $(shell sdl2-config --libs) -lX11 -lXrandr
+	GFX_CFLAGS  += $(shell sdl2-config --cflags)
+	GFX_LDFLAGS += $(shell sdl2-config --libs) -lX11 -lXrandr
   endif
   ifeq ($(TARGET_WEB),1)
-    GFX_CFLAGS  += -s USE_SDL=2
-    GFX_LDFLAGS += -lSDL2
+	GFX_CFLAGS  += -s USE_SDL=2
+	GFX_LDFLAGS += -lSDL2
   endif
 endif
 
 GFX_CFLAGS += -DWIDESCREEN
 
 ifeq ($(TARGET_DOS),0)
-  MARCH := -march=native
+  MARCH := 
 endif
 
 CC_CHECK := $(CC) -fsyntax-only -fsigned-char $(INCLUDE_CFLAGS) -Wall -Wextra -Wno-format-security -D_LANGUAGE_C $(VERSION_CFLAGS) $(MATCH_CFLAGS) $(PLATFORM_CFLAGS) $(GFX_CFLAGS) $(GRUCODE_CFLAGS)
@@ -590,7 +608,7 @@ CFLAGS := $(OPT_FLAGS) $(INCLUDE_CFLAGS) -D_LANGUAGE_C $(VERSION_CFLAGS) $(MATCH
 
 ASFLAGS := -I include -I $(BUILD_DIR) $(VERSION_ASFLAGS)
 
-LDFLAGS := $(PLATFORM_LDFLAGS) $(GFX_LDFLAGS)
+LDFLAGS := #$(PLATFORM_LDFLAGS) $(GFX_LDFLAGS)
 
 endif
 
@@ -632,7 +650,7 @@ ifeq ($(COMPARE),1)
 	@$(SHA1SUM) -c $(TARGET).sha1 || (echo 'The build succeeded, but did not match the official ROM. This is expected if you are making changes to the game.\nTo silence this message, use "make COMPARE=0"'. && false)
 endif
 else
-all: $(EXE)
+all: $(EXE).tns
 endif
 
 clean:
@@ -799,7 +817,7 @@ $(SOUND_BIN_DIR)/bank_sets: $(SOUND_BIN_DIR)/sequences.bin
 $(SOUND_BIN_DIR)/%.m64: $(SOUND_BIN_DIR)/%.o
 	$(OBJCOPY) -j .rodata $< -O binary $@
 
-$(SOUND_BIN_DIR)/%.o: $(SOUND_BIN_DIR)/%.s
+$(SOUND_BIN_DIR)/%.o: $(SOUND_BIN_DIR)/%.s # PROBLEM HERE
 	$(AS) $(ASFLAGS) -o $@ $<
 
 $(SOUND_BIN_DIR)/%.inc.c: $(SOUND_BIN_DIR)/%
@@ -917,8 +935,15 @@ $(BUILD_DIR)/$(TARGET).objdump: $(ELF)
 	$(OBJDUMP) -D $< > $@
 
 else
-$(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
+$(EXE).elf: $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
 	$(LD) -L $(BUILD_DIR) -o $@ $(O_FILES) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(LDFLAGS)
+
+ZEHNFLAGS := --name "sm64" --compress
+
+$(EXE).tns: $(EXE).elf
+	genzehn --input $^ --output $@.zehn $(ZEHNFLAGS)
+	make-prg $@.zehn $@
+	rm $@.zehn
 endif
 
 
