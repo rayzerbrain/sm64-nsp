@@ -2,7 +2,7 @@
 
 #include "sm64.h"
 #include "area.h"
-#include "audio/data.h"
+//#include "audio/data.h"
 #include "audio/external.h"
 #include "behavior_data.h"
 #include "camera.h"
@@ -584,8 +584,8 @@ s32 act_panting(struct MarioState *m) {
     }
 
     if (set_mario_animation(m, MARIO_ANIM_WALK_PANTING) == 1) {
-        play_sound(SOUND_MARIO_PANTING + ((gAudioRandom % 3U) << 0x10),
-                   m->marioObj->header.gfx.cameraToObject);
+       // play_sound(SOUND_MARIO_PANTING + ((gAudioRandom % 3U) << 0x10),
+                   //m->marioObj->header.gfx.cameraToObject);
     }
 
     stationary_ground_step(m);

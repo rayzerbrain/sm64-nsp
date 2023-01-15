@@ -122,7 +122,7 @@ uint32_t *gfx_output;
 // this is set in the drawing functions
 static draw_fn_t draw_fn;
 
-static struct ShaderProgram shader_program_pool[64];
+static struct ShaderProgram shader_program_pool[0];
 static uint8_t shader_program_pool_size;
 static struct ShaderProgram *cur_shader = NULL;
 

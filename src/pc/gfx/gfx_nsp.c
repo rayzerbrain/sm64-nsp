@@ -4,6 +4,7 @@
 
 #include "gfx_window_manager_api.h"
 #include "gfx_soft.h"
+#include "macros.h";
 
 /*
 struct GfxWindowManagerAPI {
@@ -16,10 +17,9 @@ struct GfxWindowManagerAPI {
 
 uint16_t *buffer;
 
-void nsp_init(const char *game_name, bool start_in_fullscreen) {
-    set_cpu_speed(CPU_SPEED_150MHZ);
+void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
+    //set_cpu_speed(CPU_SPEED_150MHZ);
     lcd_init(SCR_320x240_565);
-    lcd_incolor();
 
     buffer = malloc(SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(uint16_t));
 }
@@ -28,8 +28,6 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
     while (!isKeyPressed(KEY_NSPIRE_ESC)) {
         run_one_game_iter();
     }
-
-    free(buffer);
 }
 
 void nsp_get_dimensions(uint32_t *width, uint32_t *height) {

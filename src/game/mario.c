@@ -2,7 +2,7 @@
 
 #include "sm64.h"
 #include "area.h"
-#include "audio/data.h"
+//#include "audio/data.h"
 #include "audio/external.h"
 #include "behavior_actions.h"
 #include "behavior_data.h"
@@ -252,12 +252,12 @@ void play_mario_jump_sound(struct MarioState *m) {
     if (!(m->flags & MARIO_MARIO_SOUND_PLAYED)) {
 #ifndef VERSION_JP
         if (m->action == ACT_TRIPLE_JUMP) {
-            play_sound(SOUND_MARIO_YAHOO_WAHA_YIPPEE + ((gAudioRandom % 5) << 16),
-                       m->marioObj->header.gfx.cameraToObject);
+            //play_sound(SOUND_MARIO_YAHOO_WAHA_YIPPEE + ((gAudioRandom % 5) << 16),
+                       //m->marioObj->header.gfx.cameraToObject);
         } else {
 #endif
-            play_sound(SOUND_MARIO_YAH_WAH_HOO + ((gAudioRandom % 3) << 16),
-                       m->marioObj->header.gfx.cameraToObject);
+            //play_sound(SOUND_MARIO_YAH_WAH_HOO + ((gAudioRandom % 3) << 16),
+              //         m->marioObj->header.gfx.cameraToObject);
 #ifndef VERSION_JP
         }
 #endif

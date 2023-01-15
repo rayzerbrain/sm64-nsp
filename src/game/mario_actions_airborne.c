@@ -2,7 +2,7 @@
 
 #include "sm64.h"
 #include "area.h"
-#include "audio/data.h"
+//#include "audio/data.h"
 #include "audio/external.h"
 #include "camera.h"
 #include "engine/graph_node.h"
@@ -1829,8 +1829,8 @@ s32 act_flying(struct MarioState *m) {
     if (startPitch <= 0 && m->faceAngle[0] > 0 && m->forwardVel >= 48.0f) {
         play_sound(SOUND_ACTION_FLYING_FAST, m->marioObj->header.gfx.cameraToObject);
 #ifndef VERSION_JP
-        play_sound(SOUND_MARIO_YAHOO_WAHA_YIPPEE + ((gAudioRandom % 5) << 16),
-                   m->marioObj->header.gfx.cameraToObject);
+        //play_sound(SOUND_MARIO_YAHOO_WAHA_YIPPEE + ((gAudioRandom % 5) << 16),
+                   //m->marioObj->header.gfx.cameraToObject);
 #endif
 #ifdef VERSION_SH
         queue_rumble_data(50, 40);

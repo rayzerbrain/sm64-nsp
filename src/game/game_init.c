@@ -1,4 +1,6 @@
+#include <stdlib.h>
 #include <ultra64.h>
+
 
 #include "sm64.h"
 #include "gfx_dimensions.h"
@@ -568,9 +570,9 @@ void setup_game_memory(void) {
     osCreateMesgQueue(&D_80339CB8, &D_80339CD4, 1);
     osCreateMesgQueue(&gGameVblankQueue, &D_80339CD0, 1);
     gPhysicalZBuffer = VIRTUAL_TO_PHYSICAL(gZBuffer);
-    gPhysicalFrameBuffers[0] = VIRTUAL_TO_PHYSICAL(gFrameBuffer0);
-    gPhysicalFrameBuffers[1] = VIRTUAL_TO_PHYSICAL(gFrameBuffer1);
-    gPhysicalFrameBuffers[2] = VIRTUAL_TO_PHYSICAL(gFrameBuffer2);
+    gPhysicalFrameBuffers[0] = (uintptr_t) malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
+    gPhysicalFrameBuffers[1] = (uintptr_t) malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
+    gPhysicalFrameBuffers[2] = (uintptr_t) malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u16));
     D_80339CF0 = main_pool_alloc(0x4000, MEMORY_POOL_LEFT);
     set_segment_base_addr(17, (void *) D_80339CF0);
     func_80278A78(&D_80339D10, gMarioAnims, D_80339CF0);

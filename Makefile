@@ -313,7 +313,7 @@ ifeq ($(TARGET_WEB),1)
 else ifeq ($(DEBUG),1)
   OPT_FLAGS := -g
 else
-  OPT_FLAGS := -Ofast -ffast-math
+  OPT_FLAGS := -ffast-math -Og
 endif
 endif
 
@@ -503,7 +503,7 @@ endif
 ifeq ($(TARGET_NSP), 1)
   AS := arm-none-eabi-as
   CC := nspire-gcc
-  LD := nspire-ld
+  LD := nspire-gcc
   CXX := nspire-g++
   OBJDUMP := arm-none-eabi-objdump
   OBJCOPY := arm-none-eabi-objcopy
@@ -530,11 +530,12 @@ ifeq ($(TARGET_DOS),1)
 endif
 
 ifeq ($(TARGET_NSP),1)
-	PLATFORM_CFLAGS := -DTARGET_NSP
+	PLATFORM_CFLAGS := -DTARGET_NSP -mthumb -mthumb-interwork
+	
 endif
 
-PLATFORM_CFLAGS += -DNO_SEGMENTED_MEMORY -Wfatal-errors
-PLATFORM_LDFLAGS += -lm
+PLATFORM_CFLAGS += -Wfatal-errors -DNO_SEGMENTED_MEMORY 
+PLATFORM_LDFLAGS :=
 
 # Compiler and linker flags for graphics backend
 ifeq ($(ENABLE_OPENGL),1)
@@ -588,8 +589,6 @@ else ifeq ($(ENABLE_SOFTRAST),1)
 	GFX_LDFLAGS += $(shell sdl2-config --libs)
   endif
   ifeq ($(TARGET_LINUX),1)
-	GFX_CFLAGS  += $(shell sdl2-config --cflags)
-	GFX_LDFLAGS += $(shell sdl2-config --libs) -lX11 -lXrandr
   endif
   ifeq ($(TARGET_WEB),1)
 	GFX_CFLAGS  += -s USE_SDL=2
@@ -608,7 +607,7 @@ CFLAGS := $(OPT_FLAGS) $(INCLUDE_CFLAGS) -D_LANGUAGE_C $(VERSION_CFLAGS) $(MATCH
 
 ASFLAGS := -I include -I $(BUILD_DIR) $(VERSION_ASFLAGS)
 
-LDFLAGS := #$(PLATFORM_LDFLAGS) $(GFX_LDFLAGS)
+LDFLAGS := $(PLATFORM_LDFLAGS) #$(GFX_LDFLAGS)
 
 endif
 
@@ -797,34 +796,7 @@ $(ENDIAN_BITWIDTH): tools/determine-endian-bitwidth.c
 	@rm $@.dummy1
 	@rm $@.dummy2
 
-$(SOUND_BIN_DIR)/sound_data.ctl: sound/sound_banks/ $(SOUND_BANK_FILES) $(SOUND_SAMPLE_AIFCS) $(ENDIAN_BITWIDTH)
-	$(PYTHON) tools/assemble_sound.py $(BUILD_DIR)/sound/samples/ sound/sound_banks/ $(SOUND_BIN_DIR)/sound_data.ctl $(SOUND_BIN_DIR)/sound_data.tbl $(VERSION_CFLAGS) $$(cat $(ENDIAN_BITWIDTH))
-
-$(SOUND_BIN_DIR)/sound_data.tbl: $(SOUND_BIN_DIR)/sound_data.ctl
-	@true
-
-ifeq ($(VERSION),sh)
-$(SOUND_BIN_DIR)/sequences.bin: $(SOUND_BANK_FILES) sound/sequences.json sound/sequences/ sound/sequences/jp/ $(SOUND_SEQUENCE_FILES) $(ENDIAN_BITWIDTH)
-	$(PYTHON) tools/assemble_sound.py --sequences $@ $(SOUND_BIN_DIR)/bank_sets sound/sound_banks/ sound/sequences.json $(SOUND_SEQUENCE_FILES) $(VERSION_CFLAGS) $$(cat $(ENDIAN_BITWIDTH))
-else
-$(SOUND_BIN_DIR)/sequences.bin: $(SOUND_BANK_FILES) sound/sequences.json sound/sequences/ sound/sequences/$(VERSION)/ $(SOUND_SEQUENCE_FILES) $(ENDIAN_BITWIDTH)
-	$(PYTHON) tools/assemble_sound.py --sequences $@ $(SOUND_BIN_DIR)/bank_sets sound/sound_banks/ sound/sequences.json $(SOUND_SEQUENCE_FILES) $(VERSION_CFLAGS) $$(cat $(ENDIAN_BITWIDTH))
-endif
-
-$(SOUND_BIN_DIR)/bank_sets: $(SOUND_BIN_DIR)/sequences.bin
-	@true
-
-$(SOUND_BIN_DIR)/%.m64: $(SOUND_BIN_DIR)/%.o
-	$(OBJCOPY) -j .rodata $< -O binary $@
-
-$(SOUND_BIN_DIR)/%.o: $(SOUND_BIN_DIR)/%.s # PROBLEM HERE
-	$(AS) $(ASFLAGS) -o $@ $<
-
-$(SOUND_BIN_DIR)/%.inc.c: $(SOUND_BIN_DIR)/%
-	hexdump -v -e '1/1 "0x%X,"' $< > $@
-	echo >> $@
-
-$(SOUND_BIN_DIR)/sound_data.o: $(SOUND_BIN_DIR)/sound_data.ctl.inc.c $(SOUND_BIN_DIR)/sound_data.tbl.inc.c $(SOUND_BIN_DIR)/sequences.bin.inc.c $(SOUND_BIN_DIR)/bank_sets.inc.c
+#SOUND TARGETS REMOVED HERE
 
 $(BUILD_DIR)/levels/scripts.o: $(BUILD_DIR)/include/level_headers.h
 
@@ -935,12 +907,13 @@ $(BUILD_DIR)/$(TARGET).objdump: $(ELF)
 	$(OBJDUMP) -D $< > $@
 
 else
-$(EXE).elf: $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
-	$(LD) -L $(BUILD_DIR) -o $@ $(O_FILES) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(LDFLAGS)
+$(EXE).elf: $(O_FILES) $(MIO0_FILES:.mio0=.o)  $(ULTRA_O_FILES) $(GODDARD_O_FILES)
+	$(LD) -L $(BUILD_DIR) -o $@ $(O_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(LDFLAGS) 
 
-ZEHNFLAGS := --name "sm64" --compress
+ZEHNFLAGS := --name "sm64" --uses-lcd-blit 1 --240x320-support 1 --color-support 1 --32MB-support 0 --compress
 
 $(EXE).tns: $(EXE).elf
+	#arm-none-eabi-strip -s $^
 	genzehn --input $^ --output $@.zehn $(ZEHNFLAGS)
 	make-prg $@.zehn $@
 	rm $@.zehn
