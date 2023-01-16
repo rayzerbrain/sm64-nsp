@@ -52,8 +52,6 @@ void send_display_list(struct SPTask *spTask) {
     gfx_run((Gfx *)spTask->task.t.data_ptr);
 }
 
-#define printf
-
 #ifdef VERSION_EU
 #define SAMPLES_HIGH 656
 #define SAMPLES_LOW 640
@@ -89,16 +87,19 @@ void main_func(void) {
     gEffectsMemoryPool = mem_pool_init(0x4000, MEMORY_POOL_LEFT);
 
     configfile_load(CONFIG_FILE);
-    //atexit(save_config);
+    atexit(save_config);
 
     wm_api = &gfx_nsp_api;
+    rendering_api = &gfx_soft_api;
 
     gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
 
-    audio_init();
-    sound_init();
+    //audio_init();
+    //sound_init();
 
-    //thread5_game_loop(NULL);
+    thread5_game_loop(NULL);
+    inited = 1;
+    
     wm_api->main_loop(produce_one_frame);
 }
 

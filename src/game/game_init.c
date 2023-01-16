@@ -647,7 +647,6 @@ void game_loop_one_iteration(void) {
         read_controller_inputs();
         levelCommandAddr = level_script_execute(levelCommandAddr);
         display_and_vsync();
-
         // when debug info is enabled, print the "BUF %d" information.
         if (gShowDebugText) {
             // subtract the end of the gfx pool with the display list to obtain the

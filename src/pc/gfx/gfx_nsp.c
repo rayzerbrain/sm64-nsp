@@ -4,7 +4,7 @@
 
 #include "gfx_window_manager_api.h"
 #include "gfx_soft.h"
-#include "macros.h";
+#include "macros.h"
 
 /*
 struct GfxWindowManagerAPI {
@@ -42,14 +42,21 @@ bool nsp_start_frame(void) {
 void nsp_swap_buffers_begin(void) {
     int screen_size = SCREEN_WIDTH * SCREEN_HEIGHT;
 
+    printf("[%d]32b ->16b..\n", 1);
     for (int i = 0; i < screen_size; i++) {
         uint32_t c32 = gfx_output[i];
+
+        if (i == 0) {
+            printf("%d\n", c32);
+            printf("%d\n", ((c32 >> 27) << 11) + (((c32 >> 18) % 64) << 5) + ((c32 >> 11) % 32));
+        }
 
         //r + g + b
         buffer[i] = ((c32 >> 27) << 11) + (((c32 >> 18) % 64) << 5) + ((c32 >> 11) % 32);
     }
-
+    printf("[%d]swapping..\n", 2);
     lcd_blit(buffer, SCR_240x320_565);
+    printf("[%d]..Done\n", 3);
 }
 
 void nsp_swap_buffers_end(void) {
