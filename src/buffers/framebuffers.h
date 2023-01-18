@@ -13,6 +13,7 @@
 #define gFrameBuffer0 gFrameBuffers[0]
 #define gFrameBuffer1 gFrameBuffers[1]
 #define gFrameBuffer2 gFrameBuffers[2]*/
+extern u16 gFrameBuffer0[SCREEN_WIDTH * SCREEN_HEIGHT];
 #else
 extern u16 gFrameBuffer0[SCREEN_WIDTH * SCREEN_HEIGHT];
 extern u16 gFrameBuffer1[SCREEN_WIDTH * SCREEN_HEIGHT];
