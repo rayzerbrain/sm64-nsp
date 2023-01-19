@@ -1,4 +1,4 @@
-/*#include <libndls.h>
+#include <libndls.h>
 
 #include "macros.h"
 
@@ -39,4 +39,3 @@ void osContGetReadData(OSContPad *pad) {
     if (isKeyPressed(KEY_NSPIRE_2))
         pad->stick_y = -128;
 }
-*/

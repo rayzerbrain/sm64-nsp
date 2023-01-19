@@ -1851,8 +1851,11 @@ void gfx_run(Gfx *commands) {
     dropped_frame = false;
 
     gfx_rapi->start_frame();
+    printf("1\n");
     gfx_run_dl(commands);
+    printf("2\n");
     gfx_flush();
+    printf("3\n");
     gfx_rapi->end_frame();
     gfx_wapi->swap_buffers_begin();
 }

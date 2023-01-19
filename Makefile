@@ -530,7 +530,7 @@ ifeq ($(TARGET_DOS),1)
 endif
 
 ifeq ($(TARGET_NSP),1)
-	PLATFORM_CFLAGS := -DTARGET_NSP -mthumb -mthumb-interwork
+	PLATFORM_CFLAGS := -DTARGET_NSP
 	
 endif
 
@@ -595,8 +595,6 @@ else ifeq ($(ENABLE_SOFTRAST),1)
 	GFX_LDFLAGS += -lSDL2
   endif
 endif
-
-GFX_CFLAGS += -DWIDESCREEN
 
 ifeq ($(TARGET_DOS),0)
   MARCH := 
@@ -913,7 +911,7 @@ $(EXE).elf: $(O_FILES) $(MIO0_FILES:.mio0=.o)  $(ULTRA_O_FILES) $(GODDARD_O_FILE
 ZEHNFLAGS := --name "sm64" --uses-lcd-blit 1 --240x320-support 1 --color-support 1 --32MB-support 0 --compress
 
 $(EXE).tns: $(EXE).elf
-	#arm-none-eabi-strip -s $^
+	arm-none-eabi-strip --strip-unneeded $^
 	genzehn --input $^ --output $@.zehn $(ZEHNFLAGS)
 	make-prg $@.zehn $@
 	rm $@.zehn
