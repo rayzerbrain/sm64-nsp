@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <libndls.h>
 
 #include "sm64.h"
 
@@ -14,7 +15,7 @@
 
 #include "compat.h"
 
-#define CONFIG_FILE "sm64config.txt"
+#define CONFIG_FILE "sm64config.txt.tns"
 
 OSMesg D_80339BEC;
 OSMesgQueue gSIEventMesgQueue;
@@ -80,10 +81,12 @@ void game_exit(void) {
     exit(0);
 }
 
-void main_func(void) {
+int main(UNUSED int argc, char *argv[]) {
     static u64 pool[0x165000 / 8 / 4 * sizeof(void *)];
     main_pool_init(pool, pool + sizeof(pool) / sizeof(pool[0]));
     gEffectsMemoryPool = mem_pool_init(0x4000, MEMORY_POOL_LEFT);
+
+    enable_relative_paths(argv);
 
     configfile_load(CONFIG_FILE);
     atexit(save_config);
@@ -93,18 +96,11 @@ void main_func(void) {
 
     gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
 
-    //audio_init();
-    //sound_init();
+    // audio_init();
+    // sound_init();
 
     thread5_game_loop(NULL);
     inited = 1;
-    
-    wm_api->main_loop(produce_one_frame);
-}
 
-int main(UNUSED int argc, UNUSED char *argv[]) {
-    main_func();
-    //malloc(5 * sizeof(uint16_t));
-    //printf("%d", sizeof(void *));
-    return 0;
+    wm_api->main_loop(produce_one_frame);
 }

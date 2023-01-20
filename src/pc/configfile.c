@@ -30,7 +30,7 @@ struct ConfigOption {
  *Config options and default values
  */
 bool configFullscreen            = false;
-bool configDrawSky               = false;
+bool configDrawSky               = true;
 bool configFiltering             = false;
 bool configEnableSound           = false;
 bool configEnableFog             = false;

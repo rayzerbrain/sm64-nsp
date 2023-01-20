@@ -118,8 +118,8 @@ static struct RSP {
     float modelview_matrix_stack[11][4][4];
     uint8_t modelview_matrix_stack_size;
 
-    float MP_matrix[4][4];
-    float P_matrix[4][4];
+    float MP_matrix[4][4]; // multiply matrix
+    float P_matrix[4][4]; // projection matrix
 
     Light_t current_lights[MAX_LIGHTS + 1];
     float current_lights_coeffs[MAX_LIGHTS][3];
@@ -1855,7 +1855,6 @@ void gfx_run(Gfx *commands) {
     gfx_run_dl(commands);
     printf("2\n");
     gfx_flush();
-    printf("3\n");
     gfx_rapi->end_frame();
     gfx_wapi->swap_buffers_begin();
 }

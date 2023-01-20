@@ -3,9 +3,7 @@
 #include "lib/src/libultra_internal.h"
 #include "macros.h"
 
-#ifdef TARGET_WEB
-#include <emscripten.h>
-#endif
+#define SAVE_FILE "sm64_save.bin.tns"
 
 extern OSMgrArgs piMgrArgs;
 
@@ -146,7 +144,7 @@ s32 osEepromLongRead(UNUSED OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes)
         ret = 0;
     }
 #else
-    FILE *fp = fopen("sm64_save_file.bin", "rb");
+    FILE *fp = fopen(SAVE_FILE, "rb");
     if (fp == NULL) {
         return -1;
     }
@@ -176,7 +174,7 @@ s32 osEepromLongWrite(UNUSED OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes
     }, content);
     s32 ret = 0;
 #else
-    FILE* fp = fopen("sm64_save_file.bin", "wb");
+    FILE* fp = fopen(SAVE_FILE, "wb");
     if (fp == NULL) {
         return -1;
     }

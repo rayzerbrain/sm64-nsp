@@ -747,7 +747,7 @@ static void gfx_soft_shader_get_info(struct ShaderProgram *prg, uint8_t *num_inp
 
 static uint32_t gfx_soft_new_texture(void) {
     const uint32_t id = tex_num++;
-
+    //printf("%d\n", tex_num);
     if (tex_num > MAX_TEXTURES) {
         printf("gfx_soft: ran out of texture slots\n");
         abort();
