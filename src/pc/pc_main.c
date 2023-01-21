@@ -15,7 +15,7 @@
 
 #include "compat.h"
 
-#define CONFIG_FILE "sm64config.txt.tns"
+#define CONFIG_FILE "sm64_config.txt.tns"
 
 OSMesg D_80339BEC;
 OSMesgQueue gSIEventMesgQueue;
@@ -52,13 +52,6 @@ void send_display_list(struct SPTask *spTask) {
     gfx_run((Gfx *)spTask->task.t.data_ptr);
 }
 
-#ifdef VERSION_EU
-#define SAMPLES_HIGH 656
-#define SAMPLES_LOW 640
-#else
-#define SAMPLES_HIGH 544
-#define SAMPLES_LOW 528
-#endif
 
 void produce_one_frame(void) {
     gfx_start_frame();
@@ -95,9 +88,6 @@ int main(UNUSED int argc, char *argv[]) {
     rendering_api = &gfx_soft_api;
 
     gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
-
-    // audio_init();
-    // sound_init();
 
     thread5_game_loop(NULL);
     inited = 1;
