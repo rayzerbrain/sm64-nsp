@@ -36,7 +36,7 @@ bool configEnableSound           = false;
 bool configEnableFog             = false;
 unsigned int configScreenWidth   = 320;
 unsigned int configScreenHeight  = 240;
-unsigned int configFrameskip     = 30;
+float configFrameskip     = 7.5f;
 // Keyboard mappings (scancode values)
 #ifdef TARGET_DOS
 // Allegro scancodes
@@ -78,7 +78,7 @@ static const struct ConfigOption options[] = {
     {.name = "enable_sound",      .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableSound},
     {.name = "screen_width",      .type = CONFIG_TYPE_UINT, .uintValue = &configScreenWidth},
     {.name = "screen_height",     .type = CONFIG_TYPE_UINT, .uintValue = &configScreenHeight},
-    {.name = "frameskip",         .type = CONFIG_TYPE_UINT, .uintValue = &configFrameskip},
+    {.name = "frameskip",         .type = CONFIG_TYPE_FLOAT, .floatValue = &configFrameskip},
     {.name = "key_a",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
     {.name = "key_b",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
     {.name = "key_start",         .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},

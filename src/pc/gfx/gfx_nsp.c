@@ -6,6 +6,8 @@
 #include "gfx_soft.h"
 #include "macros.h"
 
+#include "../configfile.h";
+
 /*
 struct GfxWindowManagerAPI {
     bool (*start_frame)(void);
@@ -36,7 +38,12 @@ void nsp_get_dimensions(uint32_t *width, uint32_t *height) {
 }
 
 bool nsp_start_frame(void) {
-    return true;
+    static uint32_t frames = 0;
+    frames++;
+    
+    printf("Frame %d\n", frames);
+    
+    return !(frames % (int)(30 / configFrameskip));
 }
 
 void nsp_swap_buffers_begin(void) {
@@ -48,7 +55,7 @@ void nsp_swap_buffers_begin(void) {
 
 
         //r + g + b
-        buffer[i] = (((c32 >> 3) % 32) << 11) + (((c32 >> 10) % 64) << 5) + ((c32 >> 19) % 32);
+        buffer[i] = (((c32 >> 3) & 0b11111) << 11) + (((c32 >> 10) & 0b111111) << 5) + ((c32 >> 19) & 0b11111);
     }
     lcd_blit(buffer, SCR_320x240_565);
 }

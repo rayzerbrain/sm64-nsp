@@ -40,8 +40,6 @@ void dispatch_audio_sptask(UNUSED struct SPTask *spTask) {
 void set_vblank_handler(UNUSED s32 index, UNUSED struct VblankHandler *handler, UNUSED OSMesgQueue *queue, UNUSED OSMesg *msg) {
 }
 
-static int frames = 0;
-
 static uint8_t inited = 0;
 
 #include "game/game_init.h" // for gGlobalTimer
@@ -55,7 +53,6 @@ void send_display_list(struct SPTask *spTask) {
 
 void produce_one_frame(void) {
     gfx_start_frame();
-    printf("Frame %d\n", ++frames);
     game_loop_one_iteration();
     printf("...Done\n");
     gfx_end_frame();
