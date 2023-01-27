@@ -6,7 +6,7 @@
 #include "gfx_soft.h"
 #include "macros.h"
 
-#include "../configfile.h";
+#include "../configfile.h"
 
 /*
 struct GfxWindowManagerAPI {

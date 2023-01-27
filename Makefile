@@ -47,7 +47,7 @@ DOS_GL := osmesa
 ifeq ($(TARGET_N64),0)
 
   NON_MATCHING := 1
-  GRUCODE := f3dex2e
+  GRUCODE := f3dex2
   TARGET_WINDOWS := 0
   ifeq ($(TARGET_WEB),0)
 	ifeq ($(TARGET_DOS),0)
