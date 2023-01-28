@@ -1,5 +1,3 @@
-#ifdef ENABLE_SOFTRAST
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -406,7 +404,6 @@ static Color4 combine_tex_tex_rgba(const float z, const float *props) {
 }
 
 /* fragment plotters */
-
 static void draw_pixel(const int idx, UNUSED const uint16_t z, Color4 src) {
     gfx_output[idx] = src.c;
 }
@@ -1041,5 +1038,3 @@ struct GfxRenderingAPI gfx_soft_api = {
     gfx_soft_set_fog_color,
     gfx_soft_shutdown,
 };
-
-#endif // ENABLE_OPENGL_LEGACY
