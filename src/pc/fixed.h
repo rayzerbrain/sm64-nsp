@@ -2,7 +2,7 @@
 #define FIXED_H
 
 #ifdef GBI_FLOATS
-typedef float sfrac32;
+typedef float s32real;
 #else
 typedef int32_t s32real;
 
