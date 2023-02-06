@@ -874,7 +874,7 @@ static inline void gfx_soft_pick_draw_func(void) {
 static void gfx_soft_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
     gfx_soft_pick_draw_func();
     const size_t num_verts = 3 * buf_vbo_num_tris;
-    const size_t stride = buf_vbo_len / num_verts;
+    const size_t stride = buf_vbo_len / num_verts; //how many props per vertex
     for (size_t i = 0; i < num_verts * stride; i += 3 * stride)
         pop_triangle(buf_vbo + i, stride);
 }
