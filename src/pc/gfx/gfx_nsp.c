@@ -56,18 +56,11 @@ void nsp_swap_buffers_begin(void) {
         
         uint32_t c32 = gfx_output[i]; //aaaaaaaabbbbbbbbggggggggrrrrrrrr
 
-        uint8_t a = (c32 & 0xff000000) >> 24;
-        if (a == 0)
-            empty_count++;
-        else if (a == 0xff)
-            full_count++;
-
         //r + g + b
         buffer[i] = ((c32 & 0b11111000) << 8) | ((c32 & 0b1111110000000000) >> 5) | ((c32 >> 19) & 0b11111); //rrrrr gggggg bbbbb
         //buffer[i] = ((uint32_t) ((uint8_t) c32 / 16.f) << 11) + ((uint32_t) ((uint8_t) (c32 >> 8) / 8.f) << 5) + ((uint32_t) ((uint8_t) (c32 >> 16) / 16.f));
     }
 
-    //printf("frame %d: full: %d. empty: %d.\n", frames, full_count, empty_count);
 
     lcd_blit(buffer, SCR_320x240_565);
 }
