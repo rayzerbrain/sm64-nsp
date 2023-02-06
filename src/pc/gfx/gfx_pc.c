@@ -17,7 +17,6 @@
 #include "gfx_screen_config.h"
 
 #include "pc/configfile.h"
-#include "pc/fixed.h"
 
 #define SUPPORT_CHECK(x) assert(x)
 
@@ -116,15 +115,15 @@ static struct ColorCombiner color_combiner_pool[64];
 static uint8_t color_combiner_pool_size;
 
 static struct RSP {
-    s32real modelview_matrix_stack[11][4][4];
+    float modelview_matrix_stack[11][4][4];
     uint8_t modelview_matrix_stack_size;
 
-    s32real MP_matrix[4][4]; 
-    s32real P_matrix[4][4]; 
+    float MP_matrix[4][4];
+    float P_matrix[4][4];
 
     Light_t current_lights[MAX_LIGHTS + 1];
-    s32real current_lights_coeffs[MAX_LIGHTS][3];
-    s32real current_lookat_coeffs[2][3]; // lookat_x, lookat_y
+    float current_lights_coeffs[MAX_LIGHTS][3];
+    float current_lookat_coeffs[2][3]; // lookat_x, lookat_y
     uint8_t current_num_lights; // includes ambient light
     bool lights_changed;
 
@@ -193,8 +192,6 @@ static size_t buf_vbo_num_tris;
 
 static struct GfxWindowManagerAPI *gfx_wapi;
 static struct GfxRenderingAPI *gfx_rapi;
-
-static int num = 0;
 
 static void gfx_flush(void) {
     if (buf_vbo_len > 0) {
@@ -551,106 +548,70 @@ static inline float rsqrtf(const float x) {
     return y;
 }
 
-static inline void gfx_normalize_vector(s32real v[3]) {
-#ifdef GBI_FLOATS
-    float mag = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-#else
-    float mag = FIX_2_FLOAT( FIX_MUL(v[0], v[0]) + FIX_MUL(v[1], v[1]) + FIX_MUL(v[2], v[2]) );
-#endif
-    const float s = rsqrtf(mag); //Possibly improve later
-    
+static inline void gfx_normalize_vector(float v[3]) {
+    const float s = rsqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
     v[0] *= s;
     v[1] *= s;
     v[2] *= s;
 }
 
-static inline void gfx_transposed_matrix_mul(s32real *restrict res, const s32real *restrict a, const s32real (*restrict b)[4]) {
-#ifdef GBI_FLOATS
+static inline void gfx_transposed_matrix_mul(float *restrict res, const float *restrict a, const float (*restrict b)[4]) {
     res[0] = a[0] * b[0][0] + a[1] * b[0][1] + a[2] * b[0][2];
     res[1] = a[0] * b[1][0] + a[1] * b[1][1] + a[2] * b[1][2];
     res[2] = a[0] * b[2][0] + a[1] * b[2][1] + a[2] * b[2][2];
-#else
-    res[0] = FIX_MUL(a[0], b[0][0]) + FIX_MUL(a[1], b[0][1]) + FIX_MUL(a[2], b[0][2]);
-    res[1] = FIX_MUL(a[0], b[1][0]) + FIX_MUL(a[1], b[1][1]) + FIX_MUL(a[2], b[1][2]);
-    res[2] = FIX_MUL(a[0], b[2][0]) + FIX_MUL(a[1], b[2][1]) + FIX_MUL(a[2], b[2][2]);
-#endif
 }
 
-static inline void calculate_normal_dir(const Light_t *light, s32real coeffs[3]) {
-#ifdef GBI_FLOATS
-    s32real light_dir[3] = {
+static inline void calculate_normal_dir(const Light_t *light, float coeffs[3]) {
+    float light_dir[3] = {
         light->dir[0] / 127.0f,
         light->dir[1] / 127.0f,
         light->dir[2] / 127.0f
     };
-#else
-    s32real light_dir[3] = {
-        INT_2_FIX(light->dir[0]) / 127,
-        INT_2_FIX(light->dir[1]) / 127,
-        INT_2_FIX(light->dir[2]) / 127
-    };
-#endif
     gfx_transposed_matrix_mul(coeffs, light_dir, rsp.modelview_matrix_stack[rsp.modelview_matrix_stack_size - 1]);
     gfx_normalize_vector(coeffs);
 }
 
-static inline void gfx_matrix_mul_inplace(const s32real (*restrict a)[4], s32real (*restrict res)[4]) {
-    s32real tmp[4][4];
+static inline void gfx_matrix_mul_inplace(const float (*restrict a)[4], float (*restrict res)[4]) {
+    float tmp[4][4];
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-#ifdef GBI_FLOATS
             tmp[i][j] = a[i][0] * res[0][j] +
                         a[i][1] * res[1][j] +
                         a[i][2] * res[2][j] +
                         a[i][3] * res[3][j];
-#else
-            tmp[i][j] = FIX_MUL(a[i][0], res[0][j]) +
-                        FIX_MUL(a[i][1], res[1][j]) +
-                        FIX_MUL(a[i][2], res[2][j]) +
-                        FIX_MUL(a[i][3], res[3][j]);
-#endif
         }
     }
     memcpy(res, tmp, sizeof(tmp));
 }
 
-static inline void gfx_matrix_mul(s32real (*restrict res)[4], const s32real (*restrict a)[4], const s32real (*restrict b)[4]) {
+static inline void gfx_matrix_mul(float (*restrict res)[4], const float (*restrict a)[4], const float (*restrict b)[4]) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-#ifdef GBI_FLOATS
             res[i][j] = a[i][0] * b[0][j] +
                         a[i][1] * b[1][j] +
                         a[i][2] * b[2][j] +
                         a[i][3] * b[3][j];
-#else
-            res[i][j] = FIX_MUL(a[i][0], b[0][j]) +
-                        FIX_MUL(a[i][1], b[1][j]) +
-                        FIX_MUL(a[i][2], b[2][j]) +
-                        FIX_MUL(a[i][3], b[3][j]);
-#endif
         }
     }
 }
 
 static void gfx_sp_matrix(uint8_t parameters, const int32_t *addr) {
-    s32real matrix[4][4];
-#ifdef GBI_FLOATS
-    // For a modified GBI where fixed point values are replaced with floats
-    memcpy(matrix, addr, sizeof(matrix));
-#else
+    float matrix[4][4];
+#ifndef GBI_FLOATS
     // Original GBI where fixed point matrices are used
     register int idx;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j += 2) {
-            idx = (i << 1) + (j >> 1); // goes 0-7 sequentially
+            idx = (i << 1) + (j >> 1);
             const int32_t int_part = addr[idx];
             const uint32_t frac_part = addr[8 + idx];
-            matrix[i][j] = (int_part & 0xffff0000) | (frac_part >> 16);
-            matrix[i][j + 1] = (int_part << 16) | (frac_part & 0xffff);
-
-            //printf("%d, %d: %d, %d\n", addr[idx], addr[8 + idx], matrix[i][j], matrix[i][j + 1]);
+            matrix[i][j] = (int32_t)((int_part & 0xffff0000) | (frac_part >> 16)) / 65536.f;
+            matrix[i][j + 1] = (int32_t)((int_part << 16) | (frac_part & 0xffff)) / 65536.f;
         }
     }
+#else
+    // For a modified GBI where fixed point values are replaced with floats
+    memcpy(matrix, addr, sizeof(matrix));
 #endif
 
     if (parameters & G_MTX_PROJECTION) {
@@ -686,11 +647,7 @@ static void gfx_sp_pop_matrix(uint32_t count) {
 }
 
 static inline float gfx_adjust_x_for_aspect_ratio(float x) {
-#ifdef PERFECT_ASPECT
-    return x;
-#else
     return x * (4.0f / 3.0f) / (float)gfx_current_dimensions.aspect_ratio;
-#endif
 }
 
 static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *vertices) {
@@ -699,18 +656,10 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
         const Vtx_tn *vn = &vertices[i].n;
         struct LoadedVertex *d = &rsp.loaded_vertices[dest_index];
 
-        s32real x = v->ob[0] * rsp.MP_matrix[0][0] + v->ob[1] * rsp.MP_matrix[1][0] + v->ob[2] * rsp.MP_matrix[2][0] + rsp.MP_matrix[3][0];
-        s32real y = v->ob[0] * rsp.MP_matrix[0][1] + v->ob[1] * rsp.MP_matrix[1][1] + v->ob[2] * rsp.MP_matrix[2][1] + rsp.MP_matrix[3][1];
-        s32real z = v->ob[0] * rsp.MP_matrix[0][2] + v->ob[1] * rsp.MP_matrix[1][2] + v->ob[2] * rsp.MP_matrix[2][2] + rsp.MP_matrix[3][2];
-        s32real w = v->ob[0] * rsp.MP_matrix[0][3] + v->ob[1] * rsp.MP_matrix[1][3] + v->ob[2] * rsp.MP_matrix[2][3] + rsp.MP_matrix[3][3];
-
-        /* if (i == 0) {
-            printf("x: %d\n", x);
-            printf("y: %d\n", y);
-            printf("z: %d\n", z);
-            printf("w: %d\n", w);
-            retur
-        }*/
+        float x = v->ob[0] * rsp.MP_matrix[0][0] + v->ob[1] * rsp.MP_matrix[1][0] + v->ob[2] * rsp.MP_matrix[2][0] + rsp.MP_matrix[3][0];
+        float y = v->ob[0] * rsp.MP_matrix[0][1] + v->ob[1] * rsp.MP_matrix[1][1] + v->ob[2] * rsp.MP_matrix[2][1] + rsp.MP_matrix[3][1];
+        float z = v->ob[0] * rsp.MP_matrix[0][2] + v->ob[1] * rsp.MP_matrix[1][2] + v->ob[2] * rsp.MP_matrix[2][2] + rsp.MP_matrix[3][2];
+        float w = v->ob[0] * rsp.MP_matrix[0][3] + v->ob[1] * rsp.MP_matrix[1][3] + v->ob[2] * rsp.MP_matrix[2][3] + rsp.MP_matrix[3][3];
 
         x = gfx_adjust_x_for_aspect_ratio(x);
 
@@ -734,28 +683,16 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
             int b = rsp.current_lights[rsp.current_num_lights - 1].col[2];
 
             for (int i = 0; i < rsp.current_num_lights - 1; i++) {
-                s32real intensity = 0;
-
+                float intensity = 0;
                 intensity += vn->n[0] * rsp.current_lights_coeffs[i][0];
                 intensity += vn->n[1] * rsp.current_lights_coeffs[i][1];
                 intensity += vn->n[2] * rsp.current_lights_coeffs[i][2];
-#ifdef GBI_FLOATS
                 intensity /= 127.0f;
-
                 if (intensity > 0.0f) {
                     r += intensity * rsp.current_lights[i].col[0];
                     g += intensity * rsp.current_lights[i].col[1];
                     b += intensity * rsp.current_lights[i].col[2];
                 }
-#else
-                intensity = FIX_DIV_FLOAT(intensity, 127.0f);
-
-                if (intensity > 0) {
-                    r += FIX_2_INT(intensity * rsp.current_lights[i].col[0]);
-                    g += FIX_2_INT(intensity * rsp.current_lights[i].col[1]);
-                    b += FIX_2_INT(intensity * rsp.current_lights[i].col[2]);
-                }
-#endif
             }
 
             d->color.r = r > 255 ? 255 : r;
@@ -763,8 +700,7 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
             d->color.b = b > 255 ? 255 : b;
 
             if (rsp.geometry_mode & G_TEXTURE_GEN) {
-                s32real dotx = 0, doty = 0;
-
+                float dotx = 0, doty = 0;
                 dotx += vn->n[0] * rsp.current_lookat_coeffs[0][0];
                 dotx += vn->n[1] * rsp.current_lookat_coeffs[0][1];
                 dotx += vn->n[2] * rsp.current_lookat_coeffs[0][2];
@@ -772,13 +708,8 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
                 doty += vn->n[1] * rsp.current_lookat_coeffs[1][1];
                 doty += vn->n[2] * rsp.current_lookat_coeffs[1][2];
 
-#ifdef GBI_FLOATS
-                U = (int32_t) ((dotx / 127.0f + 1.0f) / 4.0f * rsp.texture_scaling_factor.s);
-                V = (int32_t) ((doty / 127.0f + 1.0f) / 4.0f * rsp.texture_scaling_factor.t);
-#else
-                U = FIX_2_INT( ((FIX_DIV_FLOAT(dotx, 127.0f) + 0x10000) >> 2) * rsp.texture_scaling_factor.s );
-                V = FIX_2_INT( ((FIX_DIV_FLOAT(dotx, 127.0f) + 0x10000) >> 2) * rsp.texture_scaling_factor.t );
-#endif
+                U = (int32_t)((dotx / 127.0f + 1.0f) / 4.0f * rsp.texture_scaling_factor.s);
+                V = (int32_t)((doty / 127.0f + 1.0f) / 4.0f * rsp.texture_scaling_factor.t);
             }
         } else {
             d->color.r = v->cn[0];
@@ -798,17 +729,10 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
         if (z < -w) d->clip_rej |= CLIP_FAR;
         if (z >  w) d->clip_rej |= CLIP_NEAR;
 
-#ifdef GBI_FLOATS
         d->x = x;
         d->y = y;
         d->z = z;
         d->w = w;
-#else
-        d->x = FIX_2_FLOAT(x);
-        d->y = FIX_2_FLOAT(y);
-        d->z = FIX_2_FLOAT(z);
-        d->w = FIX_2_FLOAT(w); // NEXT STEP FOR FIXED, VERTICES
-#endif
 
         if (configEnableFog && (rsp.geometry_mode & G_FOG)) {
             w = (w == 0.f) ? 1.f / 0.001f : 1.f / w;
@@ -921,7 +845,7 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
         }
         rdp.viewport_or_scissor_changed = false;
     }
-    
+
     uint8_t num_inputs;
     bool used_textures[2], use_fog, use_alpha;
 
@@ -1045,7 +969,7 @@ static inline struct RGBA rgba_lerp(const struct RGBA c0, const struct RGBA c1, 
 }
 
 static inline bool gfx_clip_triangle(struct LoadedVertex *v1, struct LoadedVertex *v2, struct LoadedVertex *v3, const uint8_t clip_and) {
-    static const float c_planes[][4] = { //camera
+    static const float c_planes[][4] = {
         {  0.0f,  0.0f, -1.0f,  1.0f }, // near
         {  0.0f,  0.0f,  1.0f,  1.0f }, // far
         {  0.0f, -1.0f,  0.0f,  1.0f }, // top
@@ -1573,7 +1497,7 @@ static void gfx_dp_texture_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
     rdp.combine_mode = saved_combine_mode;
 }
 
-static void gfx_dp_fill_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) { //upper left: ul, lower right: lr
+static void gfx_dp_fill_rectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
     if (rdp.color_image_address == rdp.z_buf_address) {
         // Don't clear Z buffer here since we already did it with glClear
         return;

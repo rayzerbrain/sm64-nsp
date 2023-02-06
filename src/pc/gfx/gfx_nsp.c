@@ -18,7 +18,7 @@ struct GfxWindowManagerAPI {
 */
 
 uint16_t *buffer;
-static uint32_t frames = 0;
+static uint32_t frame_num = 0;
 
 void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
     //set_cpu_speed(CPU_SPEED_150MHZ);
@@ -39,28 +39,21 @@ void nsp_get_dimensions(uint32_t *width, uint32_t *height) {
 }
 
 bool nsp_start_frame(void) {
-    frames++;
+    frame_num++;
     
-    printf("Frame %d\n", frames);
+    printf("Frame %d\n", frame_num);
     
-    return !(frames % (int)(30 / configFrameskip));
+    return !(frame_num % (int)(30 / configFrameskip));
 }
 
 void nsp_swap_buffers_begin(void) {
-    int screen_size = SCREEN_WIDTH * SCREEN_HEIGHT;
-
-    int full_count = 0;
-    int empty_count = 0;
-
-    for (int i = 0; i < screen_size; i++) {
+    for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
         
         uint32_t c32 = gfx_output[i]; //aaaaaaaabbbbbbbbggggggggrrrrrrrr
 
         //r + g + b
         buffer[i] = ((c32 & 0b11111000) << 8) | ((c32 & 0b1111110000000000) >> 5) | ((c32 >> 19) & 0b11111); //rrrrr gggggg bbbbb
-        //buffer[i] = ((uint32_t) ((uint8_t) c32 / 16.f) << 11) + ((uint32_t) ((uint8_t) (c32 >> 8) / 8.f) << 5) + ((uint32_t) ((uint8_t) (c32 >> 16) / 16.f));
     }
-
 
     lcd_blit(buffer, SCR_320x240_565);
 }
@@ -70,12 +63,12 @@ void nsp_swap_buffers_end(void) {
 
 // unimplemented windowing features
 void nsp_set_keyboard_callbacks(
-    bool (*on_key_down)(int scancode), bool (*on_key_up)(int scancode),
-    void (*on_all_keys_up)(void)) {
+    UNUSED bool (*on_key_down)(int scancode), bool (*on_key_up)(int scancode),
+    UNUSED void (*on_all_keys_up)(void)) {
 }
-void nsp_set_fullscreen_changed_callback(void (*on_fullscreen_changed)(bool is_now_fullscreen)) {
+void nsp_set_fullscreen_changed_callback(UNUSED void (*on_fullscreen_changed)(bool is_now_fullscreen)) {
 }
-void nsp_set_fullscreen(bool enable) {
+void nsp_set_fullscreen(UNUSED bool enable) {
 }
 void nsp_handle_events(void) {
 }
