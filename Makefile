@@ -1,4 +1,4 @@
-# Makefile to rebuild SM64 split image
+﻿# Makefile to rebuild SM64 split image
 
 ### Default target ###
 
@@ -26,6 +26,7 @@ TARGET_DOS ?= 0
 
 # NSP
 TARGET_NSP ?= 1
+NSP_PREFIX := nspire-
 
 # Compiler to use (ido or gcc)
 COMPILER ?= gcc
@@ -502,9 +503,9 @@ endif
 
 ifeq ($(TARGET_NSP), 1)
   AS := arm-none-eabi-as
-  CC := nspire-gcc
-  LD := nspire-gcc
-  CXX := nspire-g++
+  CC := $(NSP_PREFIX)gcc
+  LD := $(NSP_PREFIX)gcc
+  CXX := $(NSP_PREFIX)g++
   OBJDUMP := arm-none-eabi-objdump
   OBJCOPY := arm-none-eabi-objcopy
 endif
@@ -531,11 +532,10 @@ endif
 
 ifeq ($(TARGET_NSP),1)
 	PLATFORM_CFLAGS := -DTARGET_NSP -DPERFECT_ASPECT
-	
+	PLATFORM_LDFLAGS := -Llib/gmp -lgmp
 endif
 
 PLATFORM_CFLAGS += -Wfatal-errors -DNO_SEGMENTED_MEMORY 
-PLATFORM_LDFLAGS :=
 
 # Compiler and linker flags for graphics backend
 ifeq ($(ENABLE_OPENGL),1)
@@ -905,7 +905,7 @@ $(BUILD_DIR)/$(TARGET).objdump: $(ELF)
 	$(OBJDUMP) -D $< > $@
 
 else
-$(EXE).elf: $(O_FILES) $(MIO0_FILES:.mio0=.o)  $(ULTRA_O_FILES) $(GODDARD_O_FILES)
+$(EXE).elf: $(O_FILES) $(MIO0_FILES:.mio0=.o) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
 	$(LD) -L $(BUILD_DIR) -o $@ $(O_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(LDFLAGS) 
 
 ZEHNFLAGS := --name "sm64" --uses-lcd-blit 1 --240x320-support 1 --color-support 1 --32MB-support 0 --compress
