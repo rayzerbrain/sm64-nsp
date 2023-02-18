@@ -28,7 +28,7 @@ void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
 }
 
 void nsp_main_loop(void (*run_one_game_iter)(void)) {
-    while (!isKeyPressed(KEY_NSPIRE_ESC)) {
+    while (!isKeyPressed(KEY_NSPIRE_ESC)) { // insert frame timing system here
         run_one_game_iter();
     }
 }

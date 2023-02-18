@@ -13,7 +13,6 @@
 
 #include "configfile.h"
 
-#include "compat.h"
 
 #define CONFIG_FILE "sm64_config.txt.tns"
 
