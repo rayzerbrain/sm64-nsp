@@ -16,19 +16,15 @@ struct GfxWindowManagerAPI {
 };
 
 */
-
-uint16_t *buffer;
 static uint32_t frame_num = 0;
 
 void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
     //set_cpu_speed(CPU_SPEED_150MHZ);
     lcd_init(SCR_320x240_565);
-
-    buffer = malloc(SCREEN_HEIGHT * SCREEN_WIDTH * sizeof(uint16_t));
 }
 
 void nsp_main_loop(void (*run_one_game_iter)(void)) {
-    while (!isKeyPressed(KEY_NSPIRE_ESC)) {
+    while (!isKeyPressed(KEY_NSPIRE_ESC)) { // insert frame timing system here
         run_one_game_iter();
     }
 }
@@ -47,6 +43,8 @@ bool nsp_start_frame(void) {
 }
 
 void nsp_swap_buffers_begin(void) {
+    static uint16_t buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
+
     for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
         
         uint32_t c32 = gfx_output[i]; //aaaaaaaabbbbbbbbggggggggrrrrrrrr
@@ -78,8 +76,6 @@ double nsp_get_time(void) {
 
 void nsp_shutdown(void) {
     lcd_init(SCR_TYPE_INVALID);
-
-    free(buffer);
 }
 
 struct GfxWindowManagerAPI gfx_nsp_api = { nsp_init,

@@ -12,6 +12,7 @@
 *.pch
 
 # Libraries
+*.a
 *.la
 *.lo
 

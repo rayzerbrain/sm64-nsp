@@ -11,6 +11,7 @@
 #endif
 #include <PR/gbi.h>
 
+#include "gfx_fix.h"
 #include "gfx_pc.h"
 #include "gfx_soft.h"
 #include "gfx_cc.h"
