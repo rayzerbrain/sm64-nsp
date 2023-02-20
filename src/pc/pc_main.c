@@ -12,6 +12,7 @@
 #include "gfx/gfx_nsp.h"
 
 #include "configfile.h"
+#include "gfx/gfx_fix.h"
 
 
 #define CONFIG_FILE "sm64_config.txt.tns"

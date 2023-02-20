@@ -44,23 +44,23 @@ enum MixType {
 };
 
 typedef union Vector2 { 
-    struct { float x, y; };
-    struct { float u, v; };
+    struct { fix64 x, y; };
+    struct { fix64 u, v; };
 } Vector2;
 
 typedef union Vector3 {
-    struct { float r, g, b; };
-    struct { float x, y, z; };
+    struct { fix64 r, g, b; };
+    struct { fix64 x, y, z; };
     Vector2 xy;
-    float v[3];
+    fix64 v[3];
 } Vector3;
 
 typedef union Vector4 {
-    struct { float r, g, b, a; };
-    struct { float x, y, z, w; };
+    struct { fix64 r, g, b, a; };
+    struct { fix64 x, y, z, w; };
     Vector2 xy;
     Vector3 xyz;
-    float v[4];
+    fix64 v[4];
 } Vector4;
 
 typedef union Color4 {
@@ -69,9 +69,9 @@ typedef union Color4 {
 } Color4;
 
 struct Tri {
-    float *v0;
-    float *v1;
-    float *v2;
+    fix64 *v0;
+    fix64 *v1;
+    fix64 *v2;
 };
 
 struct Texture;
@@ -81,7 +81,7 @@ typedef Color4 (*sample_fn_t)(const struct Texture * const, const int, const int
 // pixel drawing function: does blending, zwriting, alpha edge checking or whatever else, then plots pixel
 typedef void (*draw_fn_t)(const int idx, uint16_t uz, const Color4 src);
 // color combiner: takes float vertex properties and obtains final fragment color from them
-typedef Color4 (*combine_fn_t)(const float z, const float *props);
+typedef Color4 (*combine_fn_t)(const fix64 z, const fix64 *props);
 // rasterizer: walks the triangle and interpolates a fixed amount of vertex properties
 typedef void (*rast_fn_t)(const struct Tri tri);
 
@@ -97,7 +97,7 @@ struct ShaderProgram {
 
 struct Texture {
     int w, h;           // size
-    float fw, fh;       // float size because float conversion bad
+    fix64 fw, fh;       // fix size because why not?
     int wrap_w, wrap_h; // size - 1 for wrapping
     bool filter;        // linear filter
     uint32_t addr;      // offset into texcache
@@ -106,8 +106,8 @@ struct Texture {
 
 struct Viewport {
     int x, y, w, h; // rect
-    float cx, cy;   // center
-    float hw, hh;   // half size
+    fix64 cx, cy;   // center
+    fix64 hw, hh;   // half size
     // float zn, zf, cz, hz; // FIXME: ztrick
 };
 
@@ -145,12 +145,14 @@ static Color4 fog_color; // this is set by set_fog_color() calls from gfx_pc
 
 static bool z_test;        // whether to perform depth testing
 static bool z_write;       // whether to write into the Z buffer
-static float z_offset;     // offset for decal mode
+static fix64 z_offset;     // offset for decal mode
 static uint16_t *z_buffer;
 
 static int scr_width;
 static int scr_height;
 static int scr_size; // scr_width * scr_height
+
+static int num = 0;
 
 // color component interpolation table:
 // lerp(x, y, t) = x + (y - x) * t
@@ -160,8 +162,8 @@ static uint8_t lerp_tab[256][256 * 2 + 1];
 static uint8_t mult_tab[256][256];
 // dither kernel for unreal texture filtering
 static const Vector2 dither_tab[2][2] = {
-    { {{ 0.25f, 0.00f }}, {{ 0.50f, 0.75f }} },
-    { {{ 0.75f, 0.50f }}, {{ 0.00f, 0.25f }} },
+    //{ {{ 0.25f, 0.00f }}, {{ 0.50f, 0.75f }} },
+    //{ {{ 0.75f, 0.50f }}, {{ 0.00f, 0.25f }} },
 };
 
 /* math shit */
@@ -245,8 +247,8 @@ static inline int imax(const int a, const int b) {
 
 static inline void viewport_transform(Vector4 *v) {
     // gfx_pc.c with ENABLE_SOFTRAST defined will feed us with everything already pre-multiplied by inverse of w
-    v->x = v->x * r_view.hw + r_view.cx + 0.5f;
-    v->y = v->y * r_view.hh + r_view.cy + 0.5f;
+    v->x = fix_mult(v->x, r_view.hw) + r_view.cx + FIX_ONE_HALF;
+    v->y = fix_mult(v->y, r_view.hh) + r_view.cy + FIX_ONE_HALF;
     // v->w is also already 1.f / v->w
 }
 
@@ -292,15 +294,15 @@ static Color4 tex_sample_nearest_mr(const struct Texture * const tex, const int 
     return tex_get(tex, imirror0w(x, tex->wrap_w), iwrap0w(y, tex->wrap_h));
 }
 
-static inline Color4 tex_sample_linear(const struct Texture * const tex, const float u, const float v, const Vector2 d) {
-    const int x = d.u + u * tex->fw;
-    const int y = d.v + v * tex->fh;
+static inline Color4 tex_sample_linear(const struct Texture * const tex, const fix64 u, const fix64 v, const Vector2 d) {
+    const int x = FIX_2_INT(d.u + fix_mult(u, tex->fw));
+    const int y = FIX_2_INT(d.v + fix_mult(v, tex->fh));
     return tex->sample(tex, x, y);
 }
 
-static inline Color4 tex_sample_nearest(const struct Texture * const tex, const float u, const float v) {
-    const int x = u * tex->fw;
-    const int y = v * tex->fh;
+static inline Color4 tex_sample_nearest(const struct Texture *const tex, const fix64 u, const fix64 v) {
+    const int x = FIX_2_INT(fix_mult(u, tex->fw));
+    const int y = FIX_2_INT(fix_mult(v, tex->fh));
     return tex->sample(tex, x, y);
 }
 
@@ -308,99 +310,144 @@ static inline Color4 tex_sample_nearest(const struct Texture * const tex, const 
 
 #define tex_sample tex_sample_nearest
 
-static Color4 combine_rgb(const float z, const float *props) {
-    return (Color4) {{ .r = props[0] * z, .g = props[1] * z, .b = props[2] * z, .a = 0xFF }};
+static Color4 combine_rgb(const fix64 z, const fix64 *props) {
+    return (Color4){ { .r = FIX_2_INT(fix_mult(props[0], z)),
+                       .g = FIX_2_INT(fix_mult(props[1], z)),
+                       .b = FIX_2_INT(fix_mult(props[2], z)),
+                       .a = 0xFF } };
 }
 
-static Color4 combine_rgba(const float z, const float *props) {
-    return (Color4) {{ .r = props[0] * z, .g = props[1] * z, .b = props[2] * z, .a = props[3] * z }};
+static Color4 combine_rgba(const fix64 z, const fix64 *props) {
+    return (Color4){ { .r = FIX_2_INT(fix_mult(props[0], z)),
+                       .g = FIX_2_INT(fix_mult(props[1], z)),
+                       .b = FIX_2_INT(fix_mult(props[2], z)),
+                       .a = FIX_2_INT(fix_mult(props[3], z)) } };
 }
 
-static Color4 combine_fog_rgb(const float z, const float *props) {
-    const uint8_t fog = props[0] * z;
-    const Color4 c = (Color4) {{ .r = props[1] * z, .g = props[2] * z, .b = props[3] * z, .a = 0xFF }};
+static Color4 combine_fog_rgb(const fix64 z, const fix64 *props) {
+    const uint8_t fog = FIX_2_INT(fix_mult(props[0], z));
+    const Color4 c = (Color4){ { .r = FIX_2_INT(fix_mult(props[1], z)),
+                                 .g = FIX_2_INT(fix_mult(props[2], z)),
+                                 .b = FIX_2_INT(fix_mult(props[3], z)),
+                                 .a = 0xFF } };
     return rgba_blend(fog_color, c, fog);
 }
 
-static Color4 combine_fog_rgba(const float z, const float *props) {
-    const uint8_t fog = props[0] * z;
-    const Color4 c = (Color4) {{ .r = props[1] * z, .g = props[2] * z, .b = props[3] * z, .a = props[4] * z }};
+static Color4 combine_fog_rgba(const fix64 z, const fix64 *props) {
+    const uint8_t fog = FIX_2_INT(fix_mult(props[0], z));
+    const Color4 c = (Color4){ { .r = FIX_2_INT(fix_mult(props[1], z)),
+                                 .g = FIX_2_INT(fix_mult(props[2], z)),
+                                 .b = FIX_2_INT(fix_mult(props[3], z)),
+                                 .a = FIX_2_INT(fix_mult(props[4], z)) } };
     return rgba_blend(fog_color, c, fog);
 }
 
-static Color4 combine_rgba_rgba(const float z, const float *props) {
-    const Color4 ca = (Color4) {{ .r = props[0] * z, .g = props[1] * z, .b = props[2] * z, .a = props[3] * z }};
-    const Color4 cb = (Color4) {{ .r = props[4] * z, .g = props[5] * z, .b = props[6] * z, .a = props[7] * z }};
+static Color4 combine_rgba_rgba(const fix64 z, const fix64 *props) {
+    const Color4 ca = (Color4){ { .r = FIX_2_INT(fix_mult(props[0], z)),
+                                  .g = FIX_2_INT(fix_mult(props[1], z)),
+                                  .b = FIX_2_INT(fix_mult(props[2], z)),
+                                  .a = FIX_2_INT(fix_mult(props[3], z)) } };
+    const Color4 cb = (Color4){ { .r = FIX_2_INT(fix_mult(props[4], z)),
+                                  .g = FIX_2_INT(fix_mult(props[5], z)),
+                                  .b = FIX_2_INT(fix_mult(props[6], z)),
+                                  .a = FIX_2_INT(fix_mult(props[7], z)) } };
     return rgba_modulate(ca, cb);
 }
 
-static Color4 combine_tex(const float z, const float *props) {
-    return tex_sample(cur_tex[0], props[0] * z, props[1] * z);
+static Color4 combine_tex(const fix64 z, const fix64 *props) {
+    return tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
 }
 
-static Color4 combine_tex_fog(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const uint8_t fog = props[2] * z;
+static Color4 combine_tex_fog(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const uint8_t fog = FIX_2_INT(fix_mult(props[2], z));
     return rgba_blend(fog_color, tc, fog);
 }
 
-static Color4 combine_tex_rgb(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const Color4 cc = (Color4) {{ .r = props[2] * z, .g = props[3] * z, .b = props[4] * z, .a = 0xFF }};
+static Color4 combine_tex_rgb(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
+                                  .g = FIX_2_INT(fix_mult(props[3], z)),
+                                  .b = FIX_2_INT(fix_mult(props[4], z)),
+                                  .a = 0xFF } };
     return rgba_modulate(tc, cc);
 }
 
-static Color4 combine_tex_fog_rgb(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const uint8_t fog = props[2] * z;
-    const Color4 cc = (Color4) {{ .r = props[3] * z, .g = props[4] * z, .b = props[5] * z, .a = 0xFF }};
+static Color4 combine_tex_fog_rgb(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const uint8_t fog = FIX_2_INT(fix_mult(props[2], z));
+    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[3], z)),
+                                  .g = FIX_2_INT(fix_mult(props[4], z)),
+                                  .b = FIX_2_INT(fix_mult(props[5], z)),
+                                  .a = 0xFF } };
     return rgba_blend(fog_color, rgba_modulate(tc, cc), fog);
 }
 
-static Color4 combine_tex_rgb_decal(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const Color4 cc = (Color4) {{ .r = props[2] * z, .g = props[3] * z, .b = props[4] * z, .a = 0xFF }};
+static Color4 combine_tex_rgb_decal(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
+                                  .g = FIX_2_INT(fix_mult(props[3], z)),
+                                  .b = FIX_2_INT(fix_mult(props[4], z)),
+                                  .a = 0xFF } };
     return rgba_blend(tc, cc, tc.a);
 }
 
-static Color4 combine_tex_rgba(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const Color4 cc = (Color4) {{ .r = props[2] * z, .g = props[3] * z, .b = props[4] * z, .a = props[5] * z }};
+static Color4 combine_tex_rgba(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
+                                  .g = FIX_2_INT(fix_mult(props[3], z)),
+                                  .b = FIX_2_INT(fix_mult(props[4], z)),
+                                  .a = FIX_2_INT(fix_mult(props[5], z)) } };
     return rgba_modulate(tc, cc);
 }
 
-static Color4 combine_tex_rgba_texa(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const Color4 cc = (Color4) {{ .r = props[2] * z, .g = props[3] * z, .b = props[4] * z, .a = 0xFF }};
+static Color4 combine_tex_rgba_texa(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
+                                  .g = FIX_2_INT(fix_mult(props[3], z)),
+                                  .b = FIX_2_INT(fix_mult(props[4], z)),
+                                  .a = 0xFF } };
     return rgba_modulate(tc, cc);
 }
 
-static Color4 combine_tex_fog_rgba(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const uint8_t fog = props[2] * z;
-    const Color4 cc = (Color4) {{ .r = props[3] * z, .g = props[4] * z, .b = props[5] * z, .a = props[6] * z }};
+static Color4 combine_tex_fog_rgba(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const uint8_t fog = FIX_2_INT(fix_mult(props[2], z));
+    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[3], z)),
+                                  .g = FIX_2_INT(fix_mult(props[4], z)),
+                                  .b = FIX_2_INT(fix_mult(props[5], z)),
+                                  .a = FIX_2_INT(fix_mult(props[6], z)) } };
     return rgba_blend(fog_color, rgba_modulate(tc, cc), fog);
 }
 
-static Color4 combine_tex_rgba_decal(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const Color4 cc = (Color4) {{ .r = props[2] * z, .g = props[3] * z, .b = props[4] * z, .a = props[5] * z }};
+static Color4 combine_tex_rgba_decal(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
+                                  .g = FIX_2_INT(fix_mult(props[3], z)),
+                                  .b = FIX_2_INT(fix_mult(props[4], z)),
+                                  .a = FIX_2_INT(fix_mult(props[5], z)) } };
     return rgba_blend(tc, cc, tc.a);
 }
 
-static Color4 combine_tex_rgb_rgb(const float z, const float *props) {
-    const Color4 tc = tex_sample(cur_tex[0], props[0] * z, props[1] * z);
-    const Color4 cc1 = (Color4) {{ .r = props[2] * z, .g = props[3] * z, .b = props[4] * z, 0xFF }};
-    const Color4 cc2 = (Color4) {{ .r = props[5] * z, .g = props[6] * z, .b = props[7] * z, 0xFF }};
+static Color4 combine_tex_rgb_rgb(const fix64 z, const fix64 *props) {
+    const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
+    const Color4 cc1 = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
+                                   .g = FIX_2_INT(fix_mult(props[3], z)),
+                                   .b = FIX_2_INT(fix_mult(props[4], z)),
+                                   .a = 0xFF } };
+    const Color4 cc2 = (Color4){ { .r = FIX_2_INT(fix_mult(props[5], z)),
+                                   .g = FIX_2_INT(fix_mult(props[6], z)),
+                                   .b = FIX_2_INT(fix_mult(props[7], z)),
+                                   .a = 0xFF } };
     return rgba_lerp(cc2, cc1, tc.r);
 }
 
-static Color4 combine_tex_tex_rgba(const float z, const float *props) {
-    const float u = props[0] * z;
-    const float v = props[1] * z;
+static Color4 combine_tex_tex_rgba(const fix64 z, const fix64 *props) {
+    const fix64 u = fix_mult(props[0], z);
+    const fix64 v = fix_mult(props[1], z);
     const Color4 tc1 = tex_sample(cur_tex[0], u, v);
     const Color4 tc2 = tex_sample(cur_tex[1], u, v);
-    const uint8_t r = props[2] * z;
+    const uint8_t r = FIX_2_INT(fix_mult(props[2], z));
     return rgba_lerp(tc1, tc2, r);
 }
 
@@ -467,22 +514,22 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
     register int y_end = y_b; \
     register int x, x_end; \
     register int idx; \
-    register float dx, w; \
+    register fix64 dx, w; \
     uint16_t uz; \
     /* draw triangle segment from y_a to y_b */ \
     while (y < y_end) { \
         /* do scissor clipping */ \
-        x = imax(r_clip.x0, x_a); \
-        x_end = imin(r_clip.x1, x_b); \
+        x = imax(r_clip.x0, FIX_2_INT(x_a)); \
+        x_end = imin(r_clip.x1, FIX_2_INT(x_b)); \
         /* do X subpixel prestepping */ \
-        dx = 1.f - (x_a - x); \
-        for (i = 2; i < nprops; ++i) p[i] = p_a[i] + dx * dp[i].x; \
+        dx = FIX_ONE - (x_a - INT_2_FIX(x)); \
+        for (i = 2; i < nprops; ++i) p[i] = p_a[i] + fix_mult(dx, dp[i].x); \
         idx = scr_width * (scr_height - y - 1) + x; \
         /* draw scanline from current x_a to current x_b */ \
         while (x++ < x_end) { \
-            uz = u16clamp(p[2] * 65535.f + z_offset); \
+            uz = u16clamp(FIX_2_INT(p[2] * 65535 + z_offset)); \
             if (!z_test || uz <= z_buffer[idx]) { \
-                w = 1.f / p[3]; /* the combiner will multiply by w any props it needs to persp correct */ \
+                w = fix_div(FIX_ONE, p[3]); /* the combiner will multiply by w any props it needs to persp correct */ \
                 draw_fn(idx, uz, cur_shader->combine(w, p + 4)); \
             } \
             for (i = 2; i < nprops; ++i) p[i] += dp[i].x; \
@@ -496,80 +543,80 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
     }
 
 #define R_RASTERIZE(tri, nprops) \
-    const float *v0 = (float *)tri.v0; \
-    const float *v1 = (float *)tri.v1; \
-    const float *v2 = (float *)tri.v2; \
-    const int y0i = imax(r_clip.y0, (int)v0[1]); \
-    const int y1i = imax(y0i, (int)v1[1]); \
-    const int y2i = imin(r_clip.y1, (int)v2[1]); \
-    if ((y0i == y1i && y0i == y2i) || ((int)v0[0] == (int)v1[0] && (int)v0[0] == (int)v2[0])) \
-        return; /* triangle has zero area */ \
+    const fix64 *v0 = (fix64 *) tri.v0; \
+    const fix64 *v1 = (fix64 *) tri.v1; \
+    const fix64 *v2 = (fix64 *) tri.v2; \
+    const int y0i = imax(r_clip.y0, FIX_2_INT(v0[1])); \
+    const int y1i = imax(y0i, FIX_2_INT(v1[1])); \
+    const int y2i = imin(r_clip.y1, FIX_2_INT(v2[1])); \
+    if ((y0i == y1i && y0i == y2i) || (FIX_2_INT(v0[0]) == FIX_2_INT(v1[0]) && FIX_2_INT(v0[0]) == FIX_2_INT(v2[0]))) \
+        return; /* triangle has zero area */  \
     const Vector4 ab = (Vector4) {{ v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2], v1[3] - v0[3] }}; \
     const Vector4 ac = (Vector4) {{ v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2], v2[3] - v0[3] }}; \
     const Vector2 bc = (Vector2) {{ v2[0] - v1[0], v2[1] - v1[1] }}; \
-    const float denom = 1.f / (ac.x * ab.y - ab.x * ac.y); \
-    const float dxdy_ab = ab.x / ab.y; /* x increment along ab */ \
-    const float dxdy_ac = ac.x / ac.y; /* x increment along ac */ \
-    const float dxdy_bc = bc.x / bc.y; /* x increment along bc */ \
+    const fix64 denom = fix_div(FIX_ONE, fix_mult(ac.x, ab.y) - fix_mult(ab.x, ac.y)); \
+    const fix64 dxdy_ab = fix_div(ab.x, ab.y); /* x increment along ab */ \
+    const fix64 dxdy_ac = fix_div(ac.x, ac.y); /* x increment along ac */ \
+    const fix64 dxdy_bc = fix_div(bc.x, bc.y); /* x increment along bc */ \
     const bool side = dxdy_ac > dxdy_ab; /* which side the longer edge (AC) is on */ \
-    const float y_pre0 = 1.f - (v0[1] - y0i); /* subpixel pre-step */ \
-    float dpdy_a[nprops]; /* vertex prop increments along left edge */ \
-    float p_a[nprops]; /* vertex leftmost points */ \
-    float p[nprops]; /* current vertex prop values */ \
+    const fix64 y_pre0 = FIX_ONE - (v0[1] - INT_2_FIX(y0i));  /* subpixel pre-step */ \
+    fix64 dpdy_a[nprops]; /* vertex prop increments along left edge */ \
+    fix64 p_a[nprops];    /* vertex leftmost points */ \
+    fix64 p[nprops];      /* current vertex prop values */ \
     Vector2 dp[nprops]; /* X and Y increments for vertex props */ \
     register int i; \
     /* we'll interpolate z/w (p[2]), 1/w (p[3]) and the other properties (also divided by w) */ \
     for (i = 2; i < nprops; ++i) { \
-        dp[i].x = ((v2[i] - v0[i]) * ab.y - (v1[i] - v0[i]) * ac.y) * denom; \
-        dp[i].y = ((v1[i] - v0[i]) * ac.x - (v2[i] - v0[i]) * ab.x) * denom; \
+        dp[i].x = fix_mult(fix_mult(v2[i] - v0[i], ab.y) - fix_mult(v1[i] - v0[i], ac.y), denom); \
+        dp[i].y = fix_mult(fix_mult(v1[i] - v0[i], ac.x) - fix_mult(v2[i] - v0[i], ab.x), denom); \
     } \
     if (!side) { \
         /* longer edge is on the left */ \
-        const float dxdy_a = dxdy_ac; \
+        const fix64 dxdy_a = dxdy_ac; \
         /* first column of this scanline is on AC */ \
-        float x_a = v0[0] + y_pre0 * dxdy_a; \
+        fix64 x_a = v0[0] + fix_mult(y_pre0, dxdy_a); \
         for (i = 2; i < nprops; ++i) { \
-            dpdy_a[i] = dxdy_ac * dp[i].x + dp[i].y; \
-            p_a[i] = v0[i] + y_pre0 * dpdy_a[i]; \
+            dpdy_a[i] = fix_mult(dxdy_ac, dp[i].x) + dp[i].y; \
+            p_a[i] = v0[i] + fix_mult(y_pre0, dpdy_a[i]); \
         } \
         if (y0i < y1i) { \
             /* left is AC, right is AB */ \
-            const float dxdy_b = dxdy_ab; \
+            const fix64 dxdy_b = dxdy_ab; \
             /* last column of this scanline */ \
-            float x_b = v0[0] + y_pre0 * dxdy_ab; \
+            fix64 x_b = v0[0] + fix_mult(y_pre0, dxdy_ab); \
             R_RASTERIZE_TRI_SEG(y0i, y1i, nprops); \
         } \
         if (y1i < y2i) { \
             /* left is AC, right is BC */ \
-            const float dxdy_b = dxdy_bc; \
+            const fix64 dxdy_b = dxdy_bc; \
             /* calculate prestep for vertex B */ \
-            const float y_pre1 = 1.f - (v1[1] - y1i); \
-            float x_b = v1[0] + y_pre1 * dxdy_bc; \
+            const fix64 y_pre1 = FIX_ONE - (v1[1] - INT_2_FIX(y1i)); \
+            fix64 x_b = v1[0] + fix_mult(y_pre1, dxdy_bc); \
             R_RASTERIZE_TRI_SEG(y1i, y2i, nprops); \
         } \
     } else { \
         /* longer edge is on the right */ \
-        const float dxdy_b = dxdy_ac; \
+        const fix64 dxdy_b = dxdy_ac; \
         /* last column of this scanline is on AC */ \
-        float x_b = v0[0] + y_pre0 * dxdy_ac; \
+        fix64 x_b = v0[0] + fix_mult(y_pre0, dxdy_ac); \
         if (y0i < y1i) { \
             /* right is AC, left is AB */ \
-            const float dxdy_a = dxdy_ab; \
-            float x_a = v0[0] + y_pre0 * dxdy_a; \
+            const fix64 dxdy_a = dxdy_ab; \
+            fix64 x_a = v0[0] + fix_mult(y_pre0, dxdy_a); \
             for (i = 2; i < nprops; ++i) { \
-                dpdy_a[i] = dxdy_ab * dp[i].x + dp[i].y; \
-                p_a[i] = v0[i] + y_pre0 * dpdy_a[i]; \
+                dpdy_a[i] = fix_mult(dxdy_ab, dp[i].x) + dp[i].y; \
+                p_a[i] = v0[i] + fix_mult(y_pre0, dpdy_a[i]); \
             } \
             R_RASTERIZE_TRI_SEG(y0i, y1i, nprops); \
         } \
         if (y1i < y2i) { \
             /* right is AC, left is BC */ \
-            const float y_pre1 = 1.f - (v1[1] - y1i); \
-            const float dxdy_a = dxdy_bc; \
-            float x_a = v1[0] + y_pre1 * dxdy_a; \
+            const fix64 y_pre1 = FIX_ONE - (v1[1] - INT_2_FIX(y1i)); \
+            const fix64 dxdy_a = dxdy_bc; \
+            fix64 x_a = v1[0] + fix_mult(y_pre1, dxdy_a); \
             for (i = 2; i < nprops; ++i) { \
-                dpdy_a[i] = dxdy_bc * dp[i].x + dp[i].y; \
-                p_a[i] = v1[i] + y_pre1 * dpdy_a[i]; \
+                dpdy_a[i] = fix_mult(dxdy_bc, dp[i].x) + dp[i].y; \
+                p_a[i] = v1[i] + fix_mult(y_pre1, dpdy_a[i]); \
             } \
             R_RASTERIZE_TRI_SEG(y1i, y2i, nprops); \
         } \
@@ -593,11 +640,13 @@ DEFINE_RAST_FUNC(12)
 DEFINE_RAST_FUNC(13)
 DEFINE_RAST_FUNC(14)
 
-static inline void pop_triangle(const float *buf, const int stride) {
+static inline void pop_triangle(const fix64 *buf, const int stride) {
     Vector4 *v0 = (Vector4 *)buf;
     Vector4 *v1 = (Vector4 *)(buf + stride);
     Vector4 *v2 = (Vector4 *)(buf + (stride << 1));
     Vector4 *vt;
+
+    printf("%u: %f\n", num++, FIX_2_FLOAT(v0->z));
 
     // the vertices come to us in clip space, but already divided by w, still gotta transform
     viewport_transform(v0);
@@ -609,7 +658,7 @@ static inline void pop_triangle(const float *buf, const int stride) {
     if (v0->y > v2->y) { vt = v0; v0 = v2; v2 = vt; }
     if (v1->y > v2->y) { vt = v1; v1 = v2; v2 = vt; }
 
-    const struct Tri out = (struct Tri) { (float *)v0, (float *)v1, (float *)v2 };
+    const struct Tri out = (struct Tri) { (fix64 *)v0, (fix64 *)v1, (fix64 *)v2 };
     cur_shader->rast(out);
 }
 
@@ -788,8 +837,8 @@ static void gfx_soft_upload_texture(const uint8_t *rgba32_buf, int width, int he
     tex->h = height;
     tex->wrap_w = width - 1;
     tex->wrap_h = height - 1;
-    tex->fw = (float)tex->w;
-    tex->fh = (float)tex->h;
+    tex->fw = INT_2_FIX(tex->w);
+    tex->fh = INT_2_FIX(tex->h);
 }
 
 static inline int gfx_cm_to_local(uint32_t val) {
@@ -828,7 +877,7 @@ static void gfx_soft_set_depth_mask(bool z_upd) {
 }
 
 static void gfx_soft_set_zmode_decal(bool zmode_decal) {
-    z_offset = zmode_decal ? -32.f : 0.f;
+    z_offset = zmode_decal ? INT_2_FIX(-32) : 0;
 }
 
 static void gfx_soft_set_viewport(int x, int y, int width, int height) {
@@ -836,10 +885,10 @@ static void gfx_soft_set_viewport(int x, int y, int width, int height) {
     r_view.y = y;
     r_view.w = width;
     r_view.h = height;
-    r_view.hw = width >> 1;
-    r_view.hh = height >> 1;
-    r_view.cx = x + r_view.hw;
-    r_view.cy = y + r_view.hh;
+    r_view.hw = INT_2_FIX(width >> 1);
+    r_view.hh = INT_2_FIX(height >> 1); // might as well convert now
+    r_view.cx = INT_2_FIX(x) + r_view.hw;
+    r_view.cy = INT_2_FIX(y) + r_view.hh;
 }
 
 static void gfx_soft_set_scissor(int x, int y, int width, int height) {
@@ -873,11 +922,17 @@ static inline void gfx_soft_pick_draw_func(void) {
 }
 
 static void gfx_soft_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
+    fix64 buf_vbo_fix[buf_vbo_len];
+
+    for (size_t i = 0; i < buf_vbo_len; i++) {
+        buf_vbo_fix[i] = FLOAT_2_FIX(buf_vbo[i]);
+    }
+    
     gfx_soft_pick_draw_func();
     const size_t num_verts = 3 * buf_vbo_num_tris;
     const size_t stride = buf_vbo_len / num_verts; //how many props per vertex
     for (size_t i = 0; i < num_verts * stride; i += 3 * stride)
-        pop_triangle(buf_vbo + i, stride);
+        pop_triangle(buf_vbo_fix + i, stride);
 }
 
 static void gfx_soft_fill_rect(int x0, int y0, int x1, int y1, const uint8_t *rgba) {
