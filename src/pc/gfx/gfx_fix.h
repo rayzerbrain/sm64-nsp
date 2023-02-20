@@ -35,7 +35,11 @@ static inline fix64 fix_div(const fix64 num, const fix64 denom) { //assumes non 
     float fnum = FIX_2_FLOAT(num);
     float fdenom = FIX_2_FLOAT(denom);
 
-    return FLOAT_2_FIX(fnum / fdenom);
+    float result = fnum / fdenom;
+    if (result == INFINITY)
+        return 0;
+
+    return FLOAT_2_FIX(result);
     
     static uint32_t num_shifted[4], quo[3], rem[2];
 

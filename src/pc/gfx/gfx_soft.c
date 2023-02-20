@@ -97,7 +97,6 @@ struct ShaderProgram {
 
 struct Texture {
     int w, h;           // size
-    fix64 fw, fh;       // fix size because why not?
     int wrap_w, wrap_h; // size - 1 for wrapping
     bool filter;        // linear filter
     uint32_t addr;      // offset into texcache
@@ -295,14 +294,14 @@ static Color4 tex_sample_nearest_mr(const struct Texture * const tex, const int 
 }
 
 static inline Color4 tex_sample_linear(const struct Texture * const tex, const fix64 u, const fix64 v, const Vector2 d) {
-    const int x = FIX_2_INT(d.u + fix_mult(u, tex->fw));
-    const int y = FIX_2_INT(d.v + fix_mult(v, tex->fh));
+    const int x = FIX_2_INT(d.u + u * tex->w);
+    const int y = FIX_2_INT(d.v + v * tex->h);
     return tex->sample(tex, x, y);
 }
 
-static inline Color4 tex_sample_nearest(const struct Texture *const tex, const fix64 u, const fix64 v) {
-    const int x = FIX_2_INT(fix_mult(u, tex->fw));
-    const int y = FIX_2_INT(fix_mult(v, tex->fh));
+static inline Color4 tex_sample_nearest(const struct Texture * const tex, const fix64 u, const fix64 v) {
+    const int x = FIX_2_INT(u * tex->w);
+    const int y = FIX_2_INT(v * tex->h);
     return tex->sample(tex, x, y);
 }
 
@@ -310,21 +309,21 @@ static inline Color4 tex_sample_nearest(const struct Texture *const tex, const f
 
 #define tex_sample tex_sample_nearest
 
-static Color4 combine_rgb(const fix64 z, const fix64 *props) {
+static Color4 combine_rgb(const fix64 z, const fix64 *props) { // 3
     return (Color4){ { .r = FIX_2_INT(fix_mult(props[0], z)),
                        .g = FIX_2_INT(fix_mult(props[1], z)),
                        .b = FIX_2_INT(fix_mult(props[2], z)),
                        .a = 0xFF } };
 }
 
-static Color4 combine_rgba(const fix64 z, const fix64 *props) {
+static Color4 combine_rgba(const fix64 z, const fix64 *props) { // 4
     return (Color4){ { .r = FIX_2_INT(fix_mult(props[0], z)),
                        .g = FIX_2_INT(fix_mult(props[1], z)),
                        .b = FIX_2_INT(fix_mult(props[2], z)),
                        .a = FIX_2_INT(fix_mult(props[3], z)) } };
 }
 
-static Color4 combine_fog_rgb(const fix64 z, const fix64 *props) {
+static Color4 combine_fog_rgb(const fix64 z, const fix64 *props) { // 5
     const uint8_t fog = FIX_2_INT(fix_mult(props[0], z));
     const Color4 c = (Color4){ { .r = FIX_2_INT(fix_mult(props[1], z)),
                                  .g = FIX_2_INT(fix_mult(props[2], z)),
@@ -514,7 +513,7 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
     register int y_end = y_b; \
     register int x, x_end; \
     register int idx; \
-    register fix64 dx, w; \
+    fix64 dx, w; \
     uint16_t uz; \
     /* draw triangle segment from y_a to y_b */ \
     while (y < y_end) { \
@@ -570,6 +569,7 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
         dp[i].x = fix_mult(fix_mult(v2[i] - v0[i], ab.y) - fix_mult(v1[i] - v0[i], ac.y), denom); \
         dp[i].y = fix_mult(fix_mult(v1[i] - v0[i], ac.x) - fix_mult(v2[i] - v0[i], ab.x), denom); \
     } \
+num++; \
     if (!side) { \
         /* longer edge is on the left */ \
         const fix64 dxdy_a = dxdy_ac; \
@@ -645,8 +645,6 @@ static inline void pop_triangle(const fix64 *buf, const int stride) {
     Vector4 *v1 = (Vector4 *)(buf + stride);
     Vector4 *v2 = (Vector4 *)(buf + (stride << 1));
     Vector4 *vt;
-
-    printf("%u: %f\n", num++, FIX_2_FLOAT(v0->z));
 
     // the vertices come to us in clip space, but already divided by w, still gotta transform
     viewport_transform(v0);
@@ -837,8 +835,6 @@ static void gfx_soft_upload_texture(const uint8_t *rgba32_buf, int width, int he
     tex->h = height;
     tex->wrap_w = width - 1;
     tex->wrap_h = height - 1;
-    tex->fw = INT_2_FIX(tex->w);
-    tex->fh = INT_2_FIX(tex->h);
 }
 
 static inline int gfx_cm_to_local(uint32_t val) {
