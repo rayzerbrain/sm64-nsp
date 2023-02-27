@@ -35,6 +35,9 @@ static inline fix64 fix_div(const fix64 num, const fix64 denom) { //assumes non 
     float fnum = FIX_2_FLOAT(num);
     float fdenom = FIX_2_FLOAT(denom);
 
+    if (fdenom == 0)
+        return num.n > 0 ? LLONG_MAX : LLONG_MIN; // "infinity" and "-infinity"
+
     float result = fnum / fdenom;
     if (result == INFINITY)
         return 0;
