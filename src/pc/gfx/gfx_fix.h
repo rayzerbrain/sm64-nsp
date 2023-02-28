@@ -2,12 +2,20 @@
 #define GFX_FIX_H
 
 #include <stdint.h>
-#include <string.h>
-#include <gmp.h>
 
-typedef int64_t fix64; // 32 bit int and fraction part, signed
+typedef int64_t fix64;
+
+typedef union {
+    fix64 n;
+    struct { // little endian specific
+        uint32_t d; // decimal
+        int32_t i; // integer
+    };
+} fix64_s;
 
 #define FRAC_WIDTH 32 // non configurable for mult and div operations
+
+#define FIX_SPLIT(fix) ((fix64_s){fix})
 
 #define FIX_ONE (1LL << FRAC_WIDTH)
 #define FIX_ONE_HALF (1LL << (FRAC_WIDTH - 1))
@@ -19,38 +27,35 @@ typedef int64_t fix64; // 32 bit int and fraction part, signed
 #define FIX_2_INT(fix) ((int)((fix) >> FRAC_WIDTH)) // non rounding
 
 static inline fix64 fix_mult(const fix64 fix1, const fix64 fix2) {
-    float f1 = FIX_2_FLOAT(fix1);
-    float f2 = FIX_2_FLOAT(fix2);
+    fix64_s s1 = FIX_SPLIT(fix1);
+    fix64_s s2 = FIX_SPLIT(fix2);
 
-    return FLOAT_2_FIX(f1 * f2);
+    fix64_s result = (fix64_s){(int64_t)s1.i * s2.d 
+                    + (int64_t)s2.i * s1.d
+                    + ((uint64_t)s1.d * s2.d >> 32)}; // 
+    result.i += s1.i * s2.i;
 
-    static uint32_t result[4];
+    /* float fresult = FIX_2_FLOAT(fix1) * FIX_2_FLOAT(fix2);
 
-    mpn_mul_n(result, (uint32_t *) &fix1, (uint32_t *) &fix2, 2);
+    if (FLOAT_2_FIX(fresult) != result.n && (s1.i == 0 && s2.i == 0)) {
+        printf("%f, %lld, %lld\n", fresult, result.n, (uint64_t)fix1 * fix2);
 
-    return *(fix64 *) &result[1];
+        printf("%ld, %ld\n%lu, %lu\n", s1.i, s2.i, s1.d, s2.d);
+
+        fix64_s f = FIX_SPLIT(FLOAT_2_FIX(fresult));
+
+        printf("%ld, %lu\n%ld, %lu\n", result.i, result.d, f.i, f.d);
+        abort();
+    }*/
+
+    return result.n;
 }
 
 static inline fix64 fix_div(const fix64 num, const fix64 denom) { //assumes non zero denominator
     float fnum = FIX_2_FLOAT(num);
     float fdenom = FIX_2_FLOAT(denom);
 
-    if (fdenom == 0)
-        return num.n > 0 ? LLONG_MAX : LLONG_MIN; // "infinity" and "-infinity"
-
-    float result = fnum / fdenom;
-    if (result == INFINITY)
-        return 0;
-
-    return FLOAT_2_FIX(result);
-    
-    static uint32_t num_shifted[4], quo[3], rem[2];
-
-    memcpy((void *) num_shifted + 2 * sizeof(void *), &num, 2 * sizeof(void *)); // construct a fake 128 bit num with 64 least significant zeroes
-
-    mpn_tdiv_qr(quo, rem, 0, num_shifted, 4, (uint32_t*) &denom, 2); // divide num_padded (4 limbs) by denom (2 limbs). remainder is unneeded but must be stored regardless
-    
-    return *(fix64 *) &quo[1]; 
+    return FLOAT_2_FIX(fnum / fdenom);
 }
 
 
