@@ -34,6 +34,7 @@ bool configDrawSky               = true;
 bool configFiltering             = false;
 bool configEnableSound           = false;
 bool configEnableFog             = false;
+bool config120pMode              = false;
 unsigned int configScreenWidth   = 320;
 unsigned int configScreenHeight  = 240;
 unsigned int configFrameskip     = 3; // at least, renders 1/4 of frames
@@ -76,6 +77,7 @@ static const struct ConfigOption options[] = {
     {.name = "texture_filtering", .type = CONFIG_TYPE_BOOL, .boolValue = &configFiltering},
     {.name = "enable_fog",        .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableFog},
     {.name = "enable_sound",      .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableSound},
+    {.name = "enable_120p_mode"   .type = CONFIG_TYPE_BOOL, .boolValue = &config120pMode},    
     {.name = "screen_width",      .type = CONFIG_TYPE_UINT, .uintValue = &configScreenWidth},
     {.name = "screen_height",     .type = CONFIG_TYPE_UINT, .uintValue = &configScreenHeight},
     {.name = "frameskip",         .type = CONFIG_TYPE_UINT, .uintValue = &configFrameskip},

@@ -17,6 +17,9 @@ struct GfxWindowManagerAPI {
 };
 
 */
+#define HALF_WIDTH SCREEN_WIDTH / 2
+#define HALF_HEIGHT SCREEN_HEIGHT / 2
+
 static uint32_t actual_frame = 0;
 static uint32_t ideal_frame = 1;
 static bool skip_frame = false;
@@ -55,8 +58,13 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
 }
 
 void nsp_get_dimensions(uint32_t *width, uint32_t *height) {
-    *width = SCREEN_WIDTH;
-    *height = SCREEN_HEIGHT;
+    if (config120pMode) { // quarter the pixel resolution
+        *width = HALF_WIDTH;
+        *height = HALF_HEIGHT;
+    } else {
+        *width = SCREEN_WIDTH;
+        *height = SCREEN_HEIGHT;
+    }
 }
 
 bool nsp_start_frame(void) {
@@ -65,16 +73,30 @@ bool nsp_start_frame(void) {
     return !skip_frame; // return if frame should be rendered
 }
 
+static inline c4444_to_c565(uint32_t c) {
+    return ((c & 0b11111000) << 8) | ((c & 0b1111110000000000) >> 5) | ((c >> 19) & 0b11111);
+}
+
 void nsp_swap_buffers_begin(void) {
     static uint16_t buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
+     
+    // populate buffer according to configuration 
+    if (config120pMode) {
+        for (int row = 0; row < HALF_HEIGHT; row += 2) {
+            for (int col = 0; col < HALF_WIDTH; col += 2) {
+                int i = 
+            }
+        }
+    } else {
+        for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
 
-    for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
-        
-        uint32_t c32 = gfx_output[i]; //aaaaaaaabbbbbbbbggggggggrrrrrrrr
+            uint32_t c = gfx_output[i]; // aaaaaaaabbbbbbbbggggggggrrrrrrrr
 
-        //r + g + b
-        buffer[i] = ((c32 & 0b11111000) << 8) | ((c32 & 0b1111110000000000) >> 5) | ((c32 >> 19) & 0b11111); //rrrrr gggggg bbbbb
+            // r + g + b
+            buffer[i] = c4444_to_c565(c); // rrrrr gggggg bbbbb
+        }
     }
+    
 
     lcd_blit(buffer, SCR_320x240_565);
 }

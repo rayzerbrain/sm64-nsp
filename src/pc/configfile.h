@@ -8,6 +8,7 @@ extern bool         configDrawSky;
 extern bool         configFiltering;
 extern bool         configEnableSound;
 extern bool         configEnableFog;
+extern bool			config120pMode;
 extern unsigned int configFrameskip;
 extern unsigned int configScreenWidth;
 extern unsigned int configScreenHeight;
