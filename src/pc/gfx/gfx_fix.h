@@ -39,11 +39,8 @@ static inline int32_t fix_mult_i(const fix64 fix1, const fix64 fix2) { // multip
     fix64 i2 = GET_INT(fix2);
     fix64 f2 = GET_FRAC(fix2);
     
-    return (int32_t)(
-                    ((int64_t)(i1 * i2) << 32)
-                    + (int64_t)i1 * f2
-                    + (int64_t)i2 * f1
-    >> 32);
+    return (int32_t) ( ((int64_t) i1 * f2 + (int64_t) i2 * f1) >> 32 ) 
+        + (int32_t)i1 * (int32_t)i2;
 }
 
 static inline fix64 fix_div(const fix64 num, const fix64 denom) { //assumes non zero denominator
