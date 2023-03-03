@@ -311,46 +311,46 @@ static inline Color4 tex_sample_nearest(const struct Texture * const tex, const 
 #define tex_sample tex_sample_nearest
 
 static Color4 combine_rgb(const fix64 z, const fix64 *props) { // 3
-    return (Color4){ { .r = FIX_2_INT(fix_mult(props[0], z)),
-                       .g = FIX_2_INT(fix_mult(props[1], z)),
-                       .b = FIX_2_INT(fix_mult(props[2], z)),
+    return (Color4){ { .r = fix_mult_i(props[0], z),
+                       .g = fix_mult_i(props[1], z),
+                       .b = fix_mult_i(props[2], z),
                        .a = 0xFF } };
 }
 
 static Color4 combine_rgba(const fix64 z, const fix64 *props) { // 4
-    return (Color4){ { .r = FIX_2_INT(fix_mult(props[0], z)),
-                       .g = FIX_2_INT(fix_mult(props[1], z)),
-                       .b = FIX_2_INT(fix_mult(props[2], z)),
-                       .a = FIX_2_INT(fix_mult(props[3], z)) } };
+    return (Color4){ { .r = fix_mult_i(props[0], z),
+                       .g = fix_mult_i(props[1], z),
+                       .b = fix_mult_i(props[2], z),
+                       .a = fix_mult_i(props[3], z) } };
 }
 
 static Color4 combine_fog_rgb(const fix64 z, const fix64 *props) { // 5
-    const uint8_t fog = FIX_2_INT(fix_mult(props[0], z));
-    const Color4 c = (Color4){ { .r = FIX_2_INT(fix_mult(props[1], z)),
-                                 .g = FIX_2_INT(fix_mult(props[2], z)),
-                                 .b = FIX_2_INT(fix_mult(props[3], z)),
+    const uint8_t fog = fix_mult_i(props[0], z);
+    const Color4 c = (Color4){ { .r = fix_mult_i(props[1], z),
+                                 .g = fix_mult_i(props[2], z),
+                                 .b = fix_mult_i(props[3], z),
                                  .a = 0xFF } };
     return rgba_blend(fog_color, c, fog);
 }
 
 static Color4 combine_fog_rgba(const fix64 z, const fix64 *props) {
-    const uint8_t fog = FIX_2_INT(fix_mult(props[0], z));
-    const Color4 c = (Color4){ { .r = FIX_2_INT(fix_mult(props[1], z)),
-                                 .g = FIX_2_INT(fix_mult(props[2], z)),
-                                 .b = FIX_2_INT(fix_mult(props[3], z)),
-                                 .a = FIX_2_INT(fix_mult(props[4], z)) } };
+    const uint8_t fog = fix_mult_i(props[0], z);
+    const Color4 c = (Color4){ { .r = fix_mult_i(props[1], z),
+                                 .g = fix_mult_i(props[2], z),
+                                 .b = fix_mult_i(props[3], z),
+                                 .a = fix_mult_i(props[4], z) } };
     return rgba_blend(fog_color, c, fog);
 }
 
 static Color4 combine_rgba_rgba(const fix64 z, const fix64 *props) {
-    const Color4 ca = (Color4){ { .r = FIX_2_INT(fix_mult(props[0], z)),
-                                  .g = FIX_2_INT(fix_mult(props[1], z)),
-                                  .b = FIX_2_INT(fix_mult(props[2], z)),
-                                  .a = FIX_2_INT(fix_mult(props[3], z)) } };
-    const Color4 cb = (Color4){ { .r = FIX_2_INT(fix_mult(props[4], z)),
-                                  .g = FIX_2_INT(fix_mult(props[5], z)),
-                                  .b = FIX_2_INT(fix_mult(props[6], z)),
-                                  .a = FIX_2_INT(fix_mult(props[7], z)) } };
+    const Color4 ca = (Color4){ { .r = fix_mult_i(props[0], z),
+                                  .g = fix_mult_i(props[1], z),
+                                  .b = fix_mult_i(props[2], z),
+                                  .a = fix_mult_i(props[3], z) } };
+    const Color4 cb = (Color4){ { .r = fix_mult_i(props[4], z),
+                                  .g = fix_mult_i(props[5], z),
+                                  .b = fix_mult_i(props[6], z),
+                                  .a = fix_mult_i(props[7], z) } };
     return rgba_modulate(ca, cb);
 }
 
@@ -360,84 +360,84 @@ static Color4 combine_tex(const fix64 z, const fix64 *props) {
 
 static Color4 combine_tex_fog(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const uint8_t fog = FIX_2_INT(fix_mult(props[2], z));
+    const uint8_t fog = fix_mult_i(props[2], z);
     return rgba_blend(fog_color, tc, fog);
 }
 
 static Color4 combine_tex_rgb(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
-                                  .g = FIX_2_INT(fix_mult(props[3], z)),
-                                  .b = FIX_2_INT(fix_mult(props[4], z)),
+    const Color4 cc = (Color4){ { .r = fix_mult_i(props[2], z),
+                                  .g = fix_mult_i(props[3], z),
+                                  .b = fix_mult_i(props[4], z),
                                   .a = 0xFF } };
     return rgba_modulate(tc, cc);
 }
 
 static Color4 combine_tex_fog_rgb(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const uint8_t fog = FIX_2_INT(fix_mult(props[2], z));
-    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[3], z)),
-                                  .g = FIX_2_INT(fix_mult(props[4], z)),
-                                  .b = FIX_2_INT(fix_mult(props[5], z)),
+    const uint8_t fog = fix_mult_i(props[2], z);
+    const Color4 cc = (Color4){ { .r = fix_mult_i(props[3], z),
+                                  .g = fix_mult_i(props[4], z),
+                                  .b = fix_mult_i(props[5], z),
                                   .a = 0xFF } };
     return rgba_blend(fog_color, rgba_modulate(tc, cc), fog);
 }
 
 static Color4 combine_tex_rgb_decal(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
-                                  .g = FIX_2_INT(fix_mult(props[3], z)),
-                                  .b = FIX_2_INT(fix_mult(props[4], z)),
+    const Color4 cc = (Color4){ { .r = fix_mult_i(props[2], z),
+                                  .g = fix_mult_i(props[3], z),
+                                  .b = fix_mult_i(props[4], z),
                                   .a = 0xFF } };
     return rgba_blend(tc, cc, tc.a);
 }
 
 static Color4 combine_tex_rgba(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
-                                  .g = FIX_2_INT(fix_mult(props[3], z)),
-                                  .b = FIX_2_INT(fix_mult(props[4], z)),
-                                  .a = FIX_2_INT(fix_mult(props[5], z)) } };
+    const Color4 cc = (Color4){ { .r = fix_mult_i(props[2], z),
+                                  .g = fix_mult_i(props[3], z),
+                                  .b = fix_mult_i(props[4], z),
+                                  .a = fix_mult_i(props[5], z) } };
     return rgba_modulate(tc, cc);
 }
 
 static Color4 combine_tex_rgba_texa(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
-                                  .g = FIX_2_INT(fix_mult(props[3], z)),
-                                  .b = FIX_2_INT(fix_mult(props[4], z)),
+    const Color4 cc = (Color4){ { .r = fix_mult_i(props[2], z),
+                                  .g = fix_mult_i(props[3], z),
+                                  .b = fix_mult_i(props[4], z),
                                   .a = 0xFF } };
     return rgba_modulate(tc, cc);
 }
 
 static Color4 combine_tex_fog_rgba(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const uint8_t fog = FIX_2_INT(fix_mult(props[2], z));
-    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[3], z)),
-                                  .g = FIX_2_INT(fix_mult(props[4], z)),
-                                  .b = FIX_2_INT(fix_mult(props[5], z)),
-                                  .a = FIX_2_INT(fix_mult(props[6], z)) } };
+    const uint8_t fog = fix_mult_i(props[2], z);
+    const Color4 cc = (Color4){ { .r = fix_mult_i(props[3], z),
+                                  .g = fix_mult_i(props[4], z),
+                                  .b = fix_mult_i(props[5], z),
+                                  .a = fix_mult_i(props[6], z) } };
     return rgba_blend(fog_color, rgba_modulate(tc, cc), fog);
 }
 
 static Color4 combine_tex_rgba_decal(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const Color4 cc = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
-                                  .g = FIX_2_INT(fix_mult(props[3], z)),
-                                  .b = FIX_2_INT(fix_mult(props[4], z)),
-                                  .a = FIX_2_INT(fix_mult(props[5], z)) } };
+    const Color4 cc = (Color4){ { .r = fix_mult_i(props[2], z),
+                                  .g = fix_mult_i(props[3], z),
+                                  .b = fix_mult_i(props[4], z),
+                                  .a = fix_mult_i(props[5], z) } };
     return rgba_blend(tc, cc, tc.a);
 }
 
 static Color4 combine_tex_rgb_rgb(const fix64 z, const fix64 *props) {
     const Color4 tc = tex_sample(cur_tex[0], fix_mult(props[0], z), fix_mult(props[1], z));
-    const Color4 cc1 = (Color4){ { .r = FIX_2_INT(fix_mult(props[2], z)),
-                                   .g = FIX_2_INT(fix_mult(props[3], z)),
-                                   .b = FIX_2_INT(fix_mult(props[4], z)),
+    const Color4 cc1 = (Color4){ { .r = fix_mult_i(props[2], z),
+                                   .g = fix_mult_i(props[3], z),
+                                   .b = fix_mult_i(props[4], z),
                                    .a = 0xFF } };
-    const Color4 cc2 = (Color4){ { .r = FIX_2_INT(fix_mult(props[5], z)),
-                                   .g = FIX_2_INT(fix_mult(props[6], z)),
-                                   .b = FIX_2_INT(fix_mult(props[7], z)),
+    const Color4 cc2 = (Color4){ { .r = fix_mult_i(props[5], z),
+                                   .g = fix_mult_i(props[6], z),
+                                   .b = fix_mult_i(props[7], z),
                                    .a = 0xFF } };
     return rgba_lerp(cc2, cc1, tc.r);
 }
@@ -447,7 +447,7 @@ static Color4 combine_tex_tex_rgba(const fix64 z, const fix64 *props) {
     const fix64 v = fix_mult(props[1], z);
     const Color4 tc1 = tex_sample(cur_tex[0], u, v);
     const Color4 tc2 = tex_sample(cur_tex[1], u, v);
-    const uint8_t r = FIX_2_INT(fix_mult(props[2], z));
+    const uint8_t r = fix_mult_i(props[2], z);
     return rgba_lerp(tc1, tc2, r);
 }
 
