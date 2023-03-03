@@ -82,18 +82,26 @@ void nsp_swap_buffers_begin(void) {
      
     // populate buffer according to configuration 
     if (config120pMode) {
-        for (int row = 0; row < HALF_HEIGHT; row += 2) {
-            for (int col = 0; col < HALF_WIDTH; col += 2) {
-                int i = 
+        //spread 160 * 120 img to fill whole screen, not just top left quarter
+        int img_pix = 0;
+        for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i += 2 * SCREEN_WIDTH) { // skip a row
+            for (int col = 0; col < SCREEN_WIDTH; col += 2, img_pix++) {
+                uint16_t c16 = c4444_to_c565(gfx_output[img_pix]);
+                int index = i + col;
+
+                buffer[index] = c16;
+                buffer[index + 1] = c16;
+                buffer[index + SCREEN_WIDTH] = c16;
+                buffer[index + SCREEN_WIDTH + 1] = c16;
             }
         }
     } else {
         for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
 
-            uint32_t c = gfx_output[i]; // aaaaaaaabbbbbbbbggggggggrrrrrrrr
+            uint32_t c32 = gfx_output[i]; // aaaaaaaabbbbbbbbggggggggrrrrrrrr
 
             // r + g + b
-            buffer[i] = c4444_to_c565(c); // rrrrr gggggg bbbbb
+            buffer[i] = c4444_to_c565(c32); // rrrrr gggggg bbbbb
         }
     }
     
