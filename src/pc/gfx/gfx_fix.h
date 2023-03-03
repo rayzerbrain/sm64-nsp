@@ -5,17 +5,10 @@
 
 typedef int64_t fix64;
 
-typedef union {
-    fix64 n;
-    struct { // little endian specific
-        uint32_t d; // decimal
-        int32_t i; // integer
-    };
-} fix64_s;
-
 #define FRAC_WIDTH 32 // non configurable for mult and div operations
 
-#define FIX_SPLIT(fix) ((fix64_s){fix})
+#define GET_INT(fix) (int32_t)((fix) >> 32)
+#define GET_FRAC(fix) (uint32_t)((fix) & 0xffffffff)
 
 #define FIX_ONE (1LL << FRAC_WIDTH)
 #define FIX_ONE_HALF (1LL << (FRAC_WIDTH - 1))
@@ -24,31 +17,33 @@ typedef union {
 #define FLOAT_2_FIX(fl) ((fix64)((fl) * (1LL << FRAC_WIDTH))) // shifting float left FRAC_WIDTH bits
 
 #define INT_2_FIX(num) ((fix64)(num) << FRAC_WIDTH) // all fixed point operations must involve two fix64 numbers
-#define FIX_2_INT(fix) ((int)((fix) >> FRAC_WIDTH)) // non rounding
+#define FIX_2_INT(fix) (((fix) >> FRAC_WIDTH)) // non rounding
 
-static inline fix64 fix_mult(const fix64 fix1, const fix64 fix2) {
-    fix64_s s1 = FIX_SPLIT(fix1);
-    fix64_s s2 = FIX_SPLIT(fix2);
+#define FIX_INV(fix) ((1ULL << 63) / (fix) << 1) // only loses one bit of precision
 
-    fix64_s result = (fix64_s){(int64_t)s1.i * s2.d 
-                    + (int64_t)s2.i * s1.d
-                    + ((uint64_t)s1.d * s2.d >> 32)}; // 
-    result.i += s1.i * s2.i;
+static inline fix64 fix_mult(const fix64 fix1, const fix64 fix2) { // multiply 2 fixes, return fix
+    fix64 i1 = GET_INT(fix1);
+    fix64 f1 = GET_FRAC(fix1);
+    fix64 i2 = GET_INT(fix2);
+    fix64 f2 = GET_FRAC(fix2);
+    
+    return (((uint64_t) f1 * f2) >> 32) 
+                    + ((int64_t)(i1 * i2) << 32)
+                    + (int64_t)i1 * f2
+                    + (int64_t)i2 * f1;
+}
 
-    /* float fresult = FIX_2_FLOAT(fix1) * FIX_2_FLOAT(fix2);
-
-    if (FLOAT_2_FIX(fresult) != result.n && (s1.i == 0 && s2.i == 0)) {
-        printf("%f, %lld, %lld\n", fresult, result.n, (uint64_t)fix1 * fix2);
-
-        printf("%ld, %ld\n%lu, %lu\n", s1.i, s2.i, s1.d, s2.d);
-
-        fix64_s f = FIX_SPLIT(FLOAT_2_FIX(fresult));
-
-        printf("%ld, %lu\n%ld, %lu\n", result.i, result.d, f.i, f.d);
-        abort();
-    }*/
-
-    return result.n;
+static inline int32_t fix_mult_i(const fix64 fix1, const fix64 fix2) { // multiply two fixes, return integer part. saves time not calculating decimal * decimal
+    fix64 i1 = GET_INT(fix1);
+    fix64 f1 = GET_FRAC(fix1);
+    fix64 i2 = GET_INT(fix2);
+    fix64 f2 = GET_FRAC(fix2);
+    
+    return (int32_t)(
+                    ((int64_t)(i1 * i2) << 32)
+                    + (int64_t)i1 * f2
+                    + (int64_t)i2 * f1
+    >> 32);
 }
 
 static inline fix64 fix_div(const fix64 num, const fix64 denom) { //assumes non zero denominator

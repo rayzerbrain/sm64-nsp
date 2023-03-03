@@ -529,7 +529,7 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
         while (x++ < x_end) { \
             uz = u16clamp(FIX_2_INT(p[2] * 65535 + z_offset)); \
             if (!z_test || uz <= z_buffer[idx]) { \
-                w = fix_div(FIX_ONE, p[3]); /* the combiner will multiply by w any props it needs to persp correct */ \
+                w = p[3] == FIX_ONE ? FIX_ONE : FIX_INV(p[3]); /* the combiner will multiply by w any props it needs to persp correct */ \
                 draw_fn(idx, uz, cur_shader->combine(w, p + 4)); \
             } \
             for (i = 2; i < nprops; ++i) p[i] += dp[i].x; \
