@@ -24,36 +24,24 @@ static uint32_t actual_frame = 0;
 static uint32_t ideal_frame = 1;
 static bool skip_frame = false;
 
-static _SDL_TimerID timer_id;
-
-uint32_t timer_callback(uint32_t ms, void *ideal_frame_num) {
-    *ideal_frame_num++;
-}
-
 void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
     //set_cpu_speed(CPU_SPEED_150MHZ);
     lcd_init(SCR_320x240_565);
-
-    if (SDL_Init(SDL_INIT_TIMER)) {
-        printf("Error initializing sdl timer.\n");
-        abort();
-    }
-    timer_id = SDL_AddTimer(33, timer_callback, (void *) &ideal_frame_num); // runs ~30 times every second, increments ideal frame.
 }
 
 void nsp_main_loop(void (*run_one_game_iter)(void)) {
     while (!isKeyPressed(KEY_NSPIRE_ESC)) {
-        int new_frames = ideal_frame - actual_frame;
+        //int new_frames = ideal_frame - actual_frame;
 
-        if (new_frames) {
-            int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
+        //if (new_frames) {
+            //int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
             
-            for (int i = 0; i < new_frames; ++f, --to_skip) {
-                skip_frame = to_skip > 0;
+            //for (int i = 0; i < new_frames; ++i, --to_skip) {
+                //skip_frame = to_skip > 0;
                 run_one_game_iter();
                 actual_frame++;
-            }
-        } // mostly borrowed from dos implementation
+            //}
+        //} // mostly borrowed from dos implementation
     }
 }
 
@@ -68,12 +56,13 @@ void nsp_get_dimensions(uint32_t *width, uint32_t *height) {
 }
 
 bool nsp_start_frame(void) {
-    printf("Frame %u\nIdeal frame: %u\nSkipping? %d\n", actual_frame, ideal_frame, skip_frame);
+    printf("Actual frame %u\nIdeal frame: %u\nSkipping? %d\n", actual_frame, ideal_frame, skip_frame);
     
-    return !skip_frame; // return if frame should be rendered
+    return actual_frame % 4 == 0;
+    //return !skip_frame; // return if frame should be rendered
 }
 
-static inline c4444_to_c565(uint32_t c) {
+static inline uint16_t c4444_to_c565(uint32_t c) {
     return ((c & 0b11111000) << 8) | ((c & 0b1111110000000000) >> 5) | ((c >> 19) & 0b11111);
 }
 
@@ -92,7 +81,7 @@ void nsp_swap_buffers_begin(void) {
                 buffer[index] = c16;
                 buffer[index + 1] = c16;
                 buffer[index + SCREEN_WIDTH] = c16;
-                buffer[index + SCREEN_WIDTH + 1] = c16;
+                buffer[index + SCREEN_WIDTH + 1] = c16; // expand single pixel to 2*2 square, towards bottom right
             }
         }
     } else {
@@ -104,7 +93,6 @@ void nsp_swap_buffers_begin(void) {
             buffer[i] = c4444_to_c565(c32); // rrrrr gggggg bbbbb
         }
     }
-    
 
     lcd_blit(buffer, SCR_320x240_565);
 }
@@ -129,8 +117,6 @@ double nsp_get_time(void) {
 
 void nsp_shutdown(void) {
     lcd_init(SCR_TYPE_INVALID);
-    SDL_RemoveTimer(timer_id);
-    SDL_Quit();
 }
 
 struct GfxWindowManagerAPI gfx_nsp_api = { nsp_init,

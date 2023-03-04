@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "gfx_fix.h"
+
 struct ShaderProgram;
 
 struct GfxRenderingAPI {
@@ -24,7 +26,7 @@ struct GfxRenderingAPI {
     void (*set_viewport)(int x, int y, int width, int height);
     void (*set_scissor)(int x, int y, int width, int height);
     void (*set_use_alpha)(bool use_alpha);
-    void (*draw_triangles)(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris);
+    void (*draw_triangles)(fix64 buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris);
     void (*init)(void);
     void (*on_resize)(void);
     void (*start_frame)(void);

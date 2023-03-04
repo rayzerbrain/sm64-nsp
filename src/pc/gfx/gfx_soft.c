@@ -918,18 +918,12 @@ static inline void gfx_soft_pick_draw_func(void) {
     draw_fn = draw_funcs[cur_shader->draw_flags | z_write];
 }
 
-static void gfx_soft_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
-    fix64 buf_vbo_fix[buf_vbo_len];
-
-    for (size_t i = 0; i < buf_vbo_len; i++) {
-        buf_vbo_fix[i] = FLOAT_2_FIX(buf_vbo[i]);
-    }
-    
+static void gfx_soft_draw_triangles(fix64 buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
     gfx_soft_pick_draw_func();
     const size_t num_verts = 3 * buf_vbo_num_tris;
     const size_t stride = buf_vbo_len / num_verts; //how many props per vertex
     for (size_t i = 0; i < num_verts * stride; i += 3 * stride)
-        pop_triangle(buf_vbo_fix + i, stride);
+        pop_triangle(buf_vbo + i, stride);
 }
 
 static void gfx_soft_fill_rect(int x0, int y0, int x1, int y1, const uint8_t *rgba) {

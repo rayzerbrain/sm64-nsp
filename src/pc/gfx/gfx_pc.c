@@ -14,7 +14,7 @@
 #include "gfx_cc.h"
 #include "gfx_window_manager_api.h"
 #include "gfx_rendering_api.h"
-#include "gfx_screen_config.h"
+#include "gfx_fix.h"
 
 #include "pc/configfile.h"
 
@@ -50,10 +50,10 @@
 #endif
 
 #ifdef GFX_DONT_SCALE_COLORS
-#define GFX_COLOR_ONE 255.f
+#define GFX_COLOR_ONE 255
 #define GFX_COLOR_CONVERT(x) (x)
 #else
-#define GFX_COLOR_ONE 1.f
+#define GFX_COLOR_ONE 1
 #define GFX_COLOR_CONVERT(x) (x / 255.f)
 #endif
 
@@ -186,7 +186,7 @@ static float inv_ratio_y = 1.f;
 
 static bool dropped_frame;
 
-static float buf_vbo[MAX_BUFFERED * (26 * 3)]; // 3 vertices in a triangle and 26 floats per vtx
+static fix64 buf_vbo[MAX_BUFFERED * (26 * 3)]; // 3 vertices in a triangle and 26 floats per vtx
 static size_t buf_vbo_len;
 static size_t buf_vbo_num_tris;
 
@@ -863,11 +863,13 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
 
     for (int i = 0; i < 3; i++) {
 #ifdef GFX_W_PREMULT
-        const float w = v_arr[i]->w;
-        const float w_inv = 1.f / w;
-        buf_vbo[buf_vbo_len++] = v_arr[i]->x * w_inv;
-        buf_vbo[buf_vbo_len++] = v_arr[i]->y * w_inv;
-        buf_vbo[buf_vbo_len++] = (v_arr[i]->z + w) * 0.5f * w_inv;
+        const fix64 w = FLOAT_2_FIX(v_arr[i]->w);
+        const fix64 w_inv = FIX_INV(w);
+        buf_vbo[buf_vbo_len++] = fix_mult(FLOAT_2_FIX(v_arr[i]->x), w_inv);
+        buf_vbo[buf_vbo_len++] = fix_mult(FLOAT_2_FIX(v_arr[i]->y), w_inv);
+        buf_vbo[buf_vbo_len++] = fix_mult(
+                                    fix_mult(FLOAT_2_FIX(v_arr[i]->z) + w, FIX_ONE_HALF),
+                                    w_inv);
         buf_vbo[buf_vbo_len++] = w_inv; // store inverted W right away to save softrast the trouble
 #else
         float z = v_arr[i]->z, w = v_arr[i]->w;
@@ -881,15 +883,15 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
 #endif
 
         if (use_texture) {
-            float u = (v_arr[i]->u - rdp.texture_tile.uls * 8) / 32.0f;
-            float v = (v_arr[i]->v - rdp.texture_tile.ult * 8) / 32.0f;
+            fix64 u = (FLOAT_2_FIX(v_arr[i]->u) - INT_2_FIX(rdp.texture_tile.uls * 8)) >> 5;
+            fix64 v = (FLOAT_2_FIX(v_arr[i]->v) - INT_2_FIX(rdp.texture_tile.ult * 8)) >> 5;
             if ((rdp.other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) {
                 // Linear filter adds 0.5f to the coordinates
-                u += 0.5f;
-                v += 0.5f;
+                u += FIX_ONE_HALF;
+                v += FIX_ONE_HALF;
             }
-            buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(u / tex_width);
-            buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(v / tex_height);
+            buf_vbo[buf_vbo_len++] = fix_mult(u / tex_width, w_inv);
+            buf_vbo[buf_vbo_len++] = fix_mult(v / tex_height, w_inv);
         }
 
         if (use_fog) {
@@ -898,7 +900,7 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
             buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(rdp.fog_color.g));
             buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(rdp.fog_color.b));
 #endif
-            buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(v_arr[i]->color.a)); // fog factor (not alpha)
+            buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(v_arr[i]->color.a) * w_inv; // fog factor (not alpha)
         }
 
         for (int j = 0; j < num_inputs; j++) {
@@ -930,15 +932,15 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
                         break;
                 }
                 if (k == 0) {
-                    buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(color->r));
-                    buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(color->g));
-                    buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(color->b));
+                    buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(color->r) * w_inv;
+                    buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(color->g) * w_inv;
+                    buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(color->b) * w_inv;
                 } else {
                     if (use_fog && color == &v_arr[i]->color) {
                         // Shade alpha is 100% for fog
-                        buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_ONE);
+                        buf_vbo[buf_vbo_len++] = GFX_COLOR_ONE * w_inv;
                     } else {
-                        buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(color->a));
+                        buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(color->a) * w_inv;
                     }
                 }
             }
