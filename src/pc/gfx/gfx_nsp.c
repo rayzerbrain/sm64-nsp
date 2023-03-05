@@ -8,6 +8,7 @@
 #include "macros.h"
 
 #include "../configfile.h"
+#include "../timer.h"
 
 /*
 struct GfxWindowManagerAPI {
@@ -20,28 +21,34 @@ struct GfxWindowManagerAPI {
 #define HALF_WIDTH SCREEN_WIDTH / 2
 #define HALF_HEIGHT SCREEN_HEIGHT / 2
 
-static uint32_t actual_frame = 0;
-static uint32_t ideal_frame = 1;
+static uint32_t current_frame = 0;
 static bool skip_frame = false;
 
 void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
     //set_cpu_speed(CPU_SPEED_150MHZ);
     lcd_init(SCR_320x240_565);
+    timer_start();
 }
 
 void nsp_main_loop(void (*run_one_game_iter)(void)) {
-    while (!isKeyPressed(KEY_NSPIRE_ESC)) {
-        //int new_frames = ideal_frame - actual_frame;
-
-        //if (new_frames) {
-            //int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
+    while (true) {
+        // timer should have period 2 decrements / millisecond
+        // around 1 frame per 66 intervals (decrements)
+        uint32_t ideal_frame = timer_elapsed() / 66;
+        int new_frames = ideal_frame - current_frame;
+        if (new_frames) {
+            int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
             
-            //for (int i = 0; i < new_frames; ++i, --to_skip) {
-                //skip_frame = to_skip > 0;
+            for (int i = 0; i < new_frames; ++i, --to_skip) {
+                skip_frame = to_skip > 0;
                 run_one_game_iter();
-                actual_frame++;
-            //}
-        //} // mostly borrowed from dos implementation
+                current_frame++;
+
+                if (isKeyPressed(KEY_NSPIRE_ESC)) {
+                    return;
+                }
+            }
+        } // mostly borrowed from dos implementation
     }
 }
 
@@ -56,10 +63,9 @@ void nsp_get_dimensions(uint32_t *width, uint32_t *height) {
 }
 
 bool nsp_start_frame(void) {
-    printf("Actual frame %u\nIdeal frame: %u\nSkipping? %d\n", actual_frame, ideal_frame, skip_frame);
+    printf("Actual frame %lu\nIdeal frame: %lu\nSkipping? %d\n", current_frame, timer_elapsed() / 66, skip_frame);
     
-    return actual_frame % 4 == 0;
-    //return !skip_frame; // return if frame should be rendered
+    return !skip_frame; // return if frame should be rendered
 }
 
 static inline uint16_t c4444_to_c565(uint32_t c) {
@@ -102,7 +108,8 @@ void nsp_swap_buffers_end(void) {
 
 // unimplemented windowing features
 void nsp_set_keyboard_callbacks(
-    UNUSED bool (*on_key_down)(int scancode), bool (*on_key_up)(int scancode),
+    UNUSED bool (*on_key_down)(int scancode), 
+    UNUSED bool (*on_key_up)(int scancode),
     UNUSED void (*on_all_keys_up)(void)) {
 }
 void nsp_set_fullscreen_changed_callback(UNUSED void (*on_fullscreen_changed)(bool is_now_fullscreen)) {
@@ -117,6 +124,7 @@ double nsp_get_time(void) {
 
 void nsp_shutdown(void) {
     lcd_init(SCR_TYPE_INVALID);
+    timer_shutdown();
 }
 
 struct GfxWindowManagerAPI gfx_nsp_api = { nsp_init,
