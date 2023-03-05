@@ -30,12 +30,12 @@ void osContGetReadData(OSContPad *pad) {
     if (isKeyPressed(KEY_NSPIRE_DOC))
         pad->button |= Z_TRIG;
 
-    if (isKeyPressed(KEY_NSPIRE_4))
+    if (isKeyPressed(KEY_NSPIRE_LEFT) || isKeyPressed(KEY_NSPIRE_LEFTUP) || isKeyPressed(KEY_NSPIRE_DOWNLEFT))
         pad->stick_x = -128;
-    if (isKeyPressed(KEY_NSPIRE_6))
+    if (isKeyPressed(KEY_NSPIRE_RIGHT) || isKeyPressed(KEY_NSPIRE_UPRIGHT) || isKeyPressed(KEY_NSPIRE_RIGHTDOWN))
         pad->stick_x = 127;
-    if (isKeyPressed(KEY_NSPIRE_8))
+    if (isKeyPressed(KEY_NSPIRE_UP) || isKeyPressed(KEY_NSPIRE_LEFTUP) || isKeyPressed(KEY_NSPIRE_UPRIGHT))
         pad->stick_y = 127;
-    if (isKeyPressed(KEY_NSPIRE_2))
+    if (isKeyPressed(KEY_NSPIRE_DOWN) || isKeyPressed(KEY_NSPIRE_RIGHTDOWN) || isKeyPressed(KEY_NSPIRE_DOWNLEFT))
         pad->stick_y = -128;
 }
