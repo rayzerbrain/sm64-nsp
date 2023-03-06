@@ -10,9 +10,10 @@
 #include "gfx/gfx_pc.h"
 #include "gfx/gfx_soft.h"
 #include "gfx/gfx_nsp.h"
+#include "gfx/gfx_fix.h"
 
 #include "configfile.h"
-#include "gfx/gfx_fix.h"
+#include "timer.h"
 
 
 #define CONFIG_FILE "sm64_config.txt.tns"
@@ -54,7 +55,6 @@ void send_display_list(struct SPTask *spTask) {
 void produce_one_frame(void) {
     gfx_start_frame();
     game_loop_one_iteration();
-    printf("...Done\n");
     gfx_end_frame();
 }
 

@@ -17,6 +17,7 @@
 #include "gfx_fix.h"
 
 #include "pc/configfile.h"
+#include "pc/timer.h"
 
 #define SUPPORT_CHECK(x) assert(x)
 
@@ -193,10 +194,14 @@ static size_t buf_vbo_num_tris;
 static struct GfxWindowManagerAPI *gfx_wapi;
 static struct GfxRenderingAPI *gfx_rapi;
 
+static uint32_t tFlushing = 0;
+
 static void gfx_flush(void) {
     if (buf_vbo_len > 0) {
-        int num = buf_vbo_num_tris;
+        uint32_t t0 = timer_elapsed();
         gfx_rapi->draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
+        tFlushing += timer_elapsed() - t0;
+        
         buf_vbo_len = 0;
         buf_vbo_num_tris = 0;
     }
@@ -1852,11 +1857,14 @@ void gfx_run(Gfx *commands) {
     }
     dropped_frame = false;
 
+    tFlushing = 0;
+    uint32_t t0 = timer_elapsed();
     gfx_rapi->start_frame();
     gfx_run_dl(commands);
     gfx_flush();
     gfx_rapi->end_frame();
     gfx_wapi->swap_buffers_begin();
+    printf("tFLUSHING: %u\ntFULL_RENDER: %u\n", tFlushing, timer_elapsed() - t0);
 }
 
 void gfx_end_frame(void) {

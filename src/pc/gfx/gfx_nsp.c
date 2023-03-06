@@ -27,18 +27,22 @@ static bool skip_frame = false;
 void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
     //set_cpu_speed(CPU_SPEED_150MHZ);
     lcd_init(SCR_320x240_565);
-    timer_start();
 }
 
 void nsp_main_loop(void (*run_one_game_iter)(void)) {
+    timer_start();
+
     while (true) {
-        // timer should have period 2 decrements / millisecond
-        // around 1 frame per 66 intervals (decrements)
-        uint32_t ideal_frame = timer_elapsed() / 66;
+        uint32_t ideal_frame = timer_elapsed() / 1056; // 33 decrements per ms * 33 ms per frame = 2112 decrements per frame
+
         int new_frames = ideal_frame - current_frame;
+
         if (new_frames) {
             int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
             
+            printf("Ideal frame: %u\nCurrent frame: %u\nFrames to render: %u\nSkipping: %u\n\n", ideal_frame, current_frame, new_frames, to_skip);
+            uint32_t t0 = timer_elapsed();
+
             for (int i = 0; i < new_frames; ++i, --to_skip) {
                 skip_frame = to_skip > 0;
                 run_one_game_iter();
@@ -48,6 +52,7 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
                     return;
                 }
             }
+            printf("tFRAME: %u\n", timer_elapsed() - t0);
         } // mostly borrowed from dos implementation
     }
 }
@@ -63,8 +68,6 @@ void nsp_get_dimensions(uint32_t *width, uint32_t *height) {
 }
 
 bool nsp_start_frame(void) {
-    printf("Actual frame %lu\nIdeal frame: %lu\nSkipping? %d\n", current_frame, timer_elapsed() / 66, skip_frame);
-    
     return !skip_frame; // return if frame should be rendered
 }
 
@@ -124,7 +127,7 @@ double nsp_get_time(void) {
 
 void nsp_shutdown(void) {
     lcd_init(SCR_TYPE_INVALID);
-    timer_shutdown();
+    //timer_shutdown();
 }
 
 struct GfxWindowManagerAPI gfx_nsp_api = { nsp_init,

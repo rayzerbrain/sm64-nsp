@@ -37,7 +37,8 @@ bool configEnableFog             = false;
 bool config120pMode              = true;
 unsigned int configScreenWidth   = 320;
 unsigned int configScreenHeight  = 240;
-unsigned int configFrameskip     = 100;
+unsigned int configFrameskip     = 50;
+
 // Keyboard mappings (scancode values)
 #ifdef TARGET_DOS
 // Allegro scancodes
