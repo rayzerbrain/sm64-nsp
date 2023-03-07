@@ -23,6 +23,9 @@
 #define MAX_TEXTURES 3072
 #define TEXCACHE_STEP 0x10000
 
+#pragma GCC push_options
+#pragma GCC optimize ("-Og")
+
 enum WrapType {
     WRAP_REPEAT = 0,
     WRAP_CLAMP  = 1,
@@ -1085,3 +1088,4 @@ struct GfxRenderingAPI gfx_soft_api = {
     gfx_soft_set_fog_color,
     gfx_soft_shutdown,
 };
+#pragma GCC pop_options
