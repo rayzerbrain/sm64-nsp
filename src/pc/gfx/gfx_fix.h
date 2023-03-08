@@ -8,7 +8,7 @@ typedef int64_t fix64;
 #define FRAC_WIDTH 32 // non configurable for mult and div operations
 
 #define GET_INT(fix) (int32_t)((fix) >> 32)
-#define GET_FRAC(fix) ((uint32_t)(fix))
+#define GET_FRAC(fix) (uint32_t)((fix) & 0xffffffff)
 
 #define FIX_ONE (1LL << FRAC_WIDTH)
 #define FIX_ONE_HALF (1LL << (FRAC_WIDTH - 1))
