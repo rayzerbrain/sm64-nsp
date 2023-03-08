@@ -10,8 +10,6 @@ extern bool         configEnableSound;
 extern bool         configEnableFog;
 extern bool			config120pMode;
 extern unsigned int configFrameskip;
-extern unsigned int configScreenWidth;
-extern unsigned int configScreenHeight;
 extern unsigned int configKeyA;
 extern unsigned int configKeyB;
 extern unsigned int configKeyStart;

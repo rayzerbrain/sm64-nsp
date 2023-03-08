@@ -35,8 +35,6 @@ bool configFiltering             = false;
 bool configEnableSound           = false;
 bool configEnableFog             = false;
 bool config120pMode              = true;
-unsigned int configScreenWidth   = 320;
-unsigned int configScreenHeight  = 240;
 unsigned int configFrameskip     = 50;
 
 // Keyboard mappings (scancode values)
@@ -78,9 +76,7 @@ static const struct ConfigOption options[] = {
     {.name = "texture_filtering", .type = CONFIG_TYPE_BOOL, .boolValue = &configFiltering},
     {.name = "enable_fog",        .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableFog},
     {.name = "enable_sound",      .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableSound},
-    {.name = "enable_120p_mode",  .type = CONFIG_TYPE_BOOL, .boolValue = &config120pMode},    
-    {.name = "screen_width",      .type = CONFIG_TYPE_UINT, .uintValue = &configScreenWidth},
-    {.name = "screen_height",     .type = CONFIG_TYPE_UINT, .uintValue = &configScreenHeight},
+    {.name = "enable_120p_mode",  .type = CONFIG_TYPE_BOOL, .boolValue = &config120pMode},
     {.name = "frameskip",         .type = CONFIG_TYPE_UINT, .uintValue = &configFrameskip},
     {.name = "key_a",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
     {.name = "key_b",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},

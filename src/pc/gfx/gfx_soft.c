@@ -127,7 +127,6 @@ static struct ShaderProgram *cur_shader = NULL;
 
 static struct Texture *cur_tex[2]; // currently selected textures for both tiles
 static struct Texture tex_hdr[MAX_TEXTURES];
-static uint32_t tex_num = 0; // amount of textures in cache
 static int cur_tmu = 0; // select tile (used only for uploading)
 
 // texture cache: linearly stores RGBA data of every cached texture
@@ -792,8 +791,8 @@ static void gfx_soft_shader_get_info(struct ShaderProgram *prg, uint8_t *num_inp
 }
 
 static uint32_t gfx_soft_new_texture(void) {
+    static uint16_t tex_num = 0; // amount of textures in cache
     const uint32_t id = tex_num++;
-    //printf("%d\n", tex_num); problem here in compiler optimization
     if (tex_num > MAX_TEXTURES) {
         printf("gfx_soft: ran out of texture slots\n");
         abort();
