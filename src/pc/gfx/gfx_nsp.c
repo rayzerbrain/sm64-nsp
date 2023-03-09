@@ -6,6 +6,7 @@
 #include "gfx_window_manager_api.h"
 #include "gfx_soft.h"
 #include "macros.h"
+#include "nspireio.h"
 
 #include "../configfile.h"
 #include "../timer.h"
@@ -30,18 +31,33 @@ void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
 }
 
 void nsp_main_loop(void (*run_one_game_iter)(void)) {
+    nio_console *console;
+    if (!nio_init(console, NIO_MAX_COLS, NIO_MAX_ROWS, 0, 0, NIO_COLOR_WHITE, NIO_COLOR_BLACK, true))
+        abort();
+    nio_set_default(console);
     timer_start();
+    uint32_t t = _timer_val();
+    nio_printf("Starting val: %ul\n", t);
+    uint32_t t0 = timer_elapsed_ms();
+    nio_printf("timer 0: %lu\n", t0);
+    msleep(1000);
+    uint32_t t1 = timer_elapsed_ms();
+    nio_printf("Timer 1: %lu\n", t1);
+    nio_printf("timer delta: %lu\n", t1 - t0);
+    wait_key_pressed();
+    nio_free(console);
 
+    timer_restart();
     while (true) {
-        uint32_t ideal_frame = timer_elapsed() / 1056; // 33 decrements per ms * 33 ms per frame = 2112 decrements per frame
+        uint32_t ideal_frame = timer_elapsed_ms() / 33; // one frame every 33 milliseconds -> 30 fps
 
         int new_frames = ideal_frame - current_frame;
 
         if (new_frames) {
             int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
             
-            printf("Ideal frame: %u\nCurrent frame: %u\nFrames to render: %u\nSkipping: %u\n\n", ideal_frame, current_frame, new_frames, to_skip);
-            uint32_t t0 = timer_elapsed();
+            printf("Ideal frame: %lu\nCurrent frame: %lu\nFrames to render: %lu\nSkipping: %lu\n\n", ideal_frame, current_frame, new_frames, to_skip);
+            uint32_t t0 = timer_elapsed_ms();
 
             for (int i = 0; i < new_frames; ++i, --to_skip) {
                 skip_frame = to_skip > 0;
@@ -51,9 +67,9 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
                 if (isKeyPressed(KEY_NSPIRE_ESC)) {
                     return;
                 }
-            }
-            printf("tFRAME: %u\n", timer_elapsed() - t0);
-        } // mostly borrowed from dos implementation
+           }
+           printf("tFRAME: %lu\n", timer_elapsed_ms() - t0);
+       } // mostly borrowed from dos implementation
     }
 }
 
@@ -68,7 +84,7 @@ void nsp_get_dimensions(uint32_t *width, uint32_t *height) {
 }
 
 bool nsp_start_frame(void) {
-    return !skip_frame; // return if frame should be rendered
+    return current_frame % 4 == 0; //! skip_frame; // return if frame should be rendered
 }
 
 static inline uint16_t c4444_to_c565(uint32_t c) {
@@ -127,7 +143,7 @@ double nsp_get_time(void) {
 
 void nsp_shutdown(void) {
     lcd_init(SCR_TYPE_INVALID);
-    //timer_shutdown();
+    timer_shutdown();
 }
 
 struct GfxWindowManagerAPI gfx_nsp_api = { nsp_init,

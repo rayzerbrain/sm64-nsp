@@ -66,11 +66,6 @@ static void on_fullscreen_changed(bool is_now_fullscreen) {
     configFullscreen = is_now_fullscreen;
 }
 
-void game_exit(void) {
-    gfx_shutdown();
-    exit(0);
-}
-
 int main(UNUSED int argc, char *argv[]) {
     static u64 pool[0x165000 / 8 / 4 * sizeof(void *)];
     main_pool_init(pool, pool + sizeof(pool) / sizeof(pool[0]));
@@ -85,6 +80,7 @@ int main(UNUSED int argc, char *argv[]) {
     rendering_api = &gfx_soft_api;
 
     gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
+    atexit(gfx_shutdown);
 
     thread5_game_loop(NULL);
     inited = 1;

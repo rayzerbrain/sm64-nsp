@@ -531,8 +531,8 @@ ifeq ($(TARGET_DOS),1)
 endif
 
 ifeq ($(TARGET_NSP),1)
-	PLATFORM_CFLAGS := -DTARGET_NSP
-	PLATFORM_LDFLAGS := 
+	PLATFORM_CFLAGS := -DTARGET_NSP -I include/ndless
+	PLATFORM_LDFLAGS := -Llib -lnspireio 
 endif
 
 PLATFORM_CFLAGS += -Wfatal-errors -DNO_SEGMENTED_MEMORY 
