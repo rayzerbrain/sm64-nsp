@@ -1,50 +1,75 @@
-#include <stdint.h>
+#include <stdlib.h>
 #include <libndls.h>
 
-#define TIMER_BASE ((unsigned*)0x900C0020)
+#define TIMER_BASE ((unsigned*)0x900C0000)
+#define CALIB_TIME 250
 
-static volatile unsigned *timer_load = TIMER_BASE;
-static volatile unsigned *timer_val = 0x900C0024;
-static volatile unsigned *timer_control = 0x900C0028;
+static volatile unsigned *tmr_load = TIMER_BASE;
+static volatile unsigned *tmr_val = TIMER_BASE + 1;
+static volatile unsigned *tmr_control = TIMER_BASE + 2;
 
-static unsigned initial_val = 0xffffffff;
-static unsigned new_control = 0b11001010; // enable, free-running, no-interrupt, (n/a), no-prescale (00), 32-bit, wrapping
-
+static unsigned old_control;
 static unsigned old_load;
 
-void timer_start(void) {
-    *timer_control = *timer_control & 0b01111111; // disable timer before modifying it
+static unsigned new_control = 0b10000010; // enable, free-running, no-interrupt, (n/a), no-prescale (00), 32-bit, wrap
+static unsigned start_val;
 
-    if (is_cx2) 
-        new_control = 0b11001010; // enable, free-running, no-interrupt, (n/a), no-prescale (00), 32-bit, wrapping
-    else
-        new_control = 0b11000010; // same except no prescaling, cx ii timer runs 368x faster for some reason
+static uint32_t tmr_freq_ms; // frequency in ms, initialized by tmr_init
+static uint32_t time_ms = 0;
+static uint32_t old_ms = 0;
 
-    *timer_control = new_control & 0b01111111; // new controls but disabled
+uint32_t tmr_ms(void) {
+    uint32_t new_ms = (start_val - (*tmr_val)) / tmr_freq_ms;
+    uint32_t delta_ms = new_ms - old_ms;
 
-    old_load = *timer_load;
-    *timer_load = initial_val;
+    time_ms += delta_ms;
 
-    *timer_control = new_control; // start the timer with new controls + load
+    old_ms = new_ms;
+    return time_ms;
 }
 
-uint32_t timer_elapsed_ms(void) {
-    uint32_t delta = initial_val - (*timer_val);
-
-    if (is_cx2)
-        return delta / 46; // 46000 decrements per second with full prescaling (period / 256)
-    else
-        return delta / 32; // 32000 decrements per second with no prescaling (period / 1)
+void tmr_start(void) {
+    printf("STARTING VAL: %u\n", start_val);
+    *tmr_control = *tmr_control | 0b10000000;
 }
 
-uint32_t _timer_val(void) {
-    return *timer_val;
+void tmr_stop(void) {
+    *tmr_control = *tmr_control & 0b01111111;
 }
 
-void timer_restart(void) {
-    initial_val = *timer_val;
+void tmr_restart(void) {
+    time_ms = 0;
+    old_ms = 0;
+    start_val = *tmr_val;
+    tmr_start();
 }
 
-void timer_shutdown(void) {
-    *timer_load = old_load;
+void tmr_init(void) {
+    old_control = *tmr_control;
+    *tmr_control = *tmr_control & 0b01111111; // disable timer before modifying it
+    old_load = *tmr_load;
+
+    *tmr_control = new_control & 0b01111111; // new controls but disabled
+    start_val = *tmr_val;
+    *tmr_load = start_val;
+
+    uint32_t v0 = *tmr_val; // perform calibration
+    tmr_start(); 
+    msleep(CALIB_TIME);
+    tmr_stop();
+    tmr_freq_ms = (v0 - *tmr_val) / CALIB_TIME;
+
+    printf("v0: %lu\nv1: %lu\nfreq: %lu\nms: %lu\n", v0, *tmr_val, tmr_freq_ms, tmr_ms());
+
+    tmr_restart();
+}
+
+void tmr_shutdown(void) {
+    tmr_stop();
+    *tmr_load = old_load;
+    *tmr_control = old_control;
+}
+
+uint32_t _tmr_val(void) {
+    return *tmr_val;
 }

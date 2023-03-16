@@ -194,13 +194,13 @@ static size_t buf_vbo_num_tris;
 static struct GfxWindowManagerAPI *gfx_wapi;
 static struct GfxRenderingAPI *gfx_rapi;
 
-static uint32_t tFlushing = 0;
+static uint64_t tFlushing = 0;
 
 static void gfx_flush(void) {
     if (buf_vbo_len > 0) {
-        uint32_t t0 = timer_elapsed_ms();
+        uint64_t t0 = tmr_ms();
         gfx_rapi->draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
-        tFlushing += timer_elapsed_ms() - t0;
+        tFlushing += tmr_ms() - t0;
         
         buf_vbo_len = 0;
         buf_vbo_num_tris = 0;
@@ -1858,13 +1858,14 @@ void gfx_run(Gfx *commands) {
     dropped_frame = false;
 
     tFlushing = 0;
-    uint32_t t0 = timer_elapsed_ms();
+    uint64_t t0 = tmr_ms();
     gfx_rapi->start_frame();
     gfx_run_dl(commands);
     gfx_flush();
     gfx_rapi->end_frame();
     gfx_wapi->swap_buffers_begin();
-    printf("tFLUSHING: %lu\ntFULL_RENDER: %lu\n", tFlushing, timer_elapsed_ms() - t0);
+
+    printf("tFLUSHING: %llu\ntFULL_RENDER: %llu\n", tFlushing, tmr_ms() - t0);
 }
 
 void gfx_end_frame(void) {
