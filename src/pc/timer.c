@@ -37,11 +37,11 @@ void tmr_stop(void) {
     *tmr_control = *tmr_control & 0b01111111;
 }
 
-void tmr_restart(void) {
+void tmr_reset(void) {
+    tmr_stop();
     time_ms = 0;
     old_ms = 0;
     start_val = *tmr_val;
-    tmr_start();
 }
 
 void tmr_init(void) {
@@ -61,11 +61,12 @@ void tmr_init(void) {
 
     printf("v0: %lu\nv1: %lu\nfreq: %lu\nms: %lu\n", v0, *tmr_val, tmr_freq_ms, tmr_ms());
 
-    tmr_restart();
+    tmr_reset();
+    tmr_start();
 }
 
 void tmr_shutdown(void) {
-    tmr_stop();
+    tmr_reset();
     *tmr_load = old_load;
     *tmr_control = old_control;
 }

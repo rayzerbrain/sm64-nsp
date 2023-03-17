@@ -6,8 +6,8 @@
 void tmr_init(void); // init, calibrate, + start timer
 void tmr_stop(void); // stop (disable) timer
 void tmr_start(void); // start (enable) timer
-void tmr_restart(void); // reset elapsed ms to 0
+void tmr_reset(void); // reset elapsed ms to 0
 uint32_t tmr_ms(void); // elapsed ms
-void tmr_shutdown(void);
+void tmr_shutdown(void); // resets timer and restores old timer controls
 
 #endif

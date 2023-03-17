@@ -47,19 +47,26 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
     nio_printf("val1: %lu\n", _tmr_val());
     nio_printf("ms1: %llu\n", t1);
     nio_printf("ms delta (should be ~1000): %llu\n", t1 - t0);
+    nio_printf("Frameskip: %u\n", configFrameskip);
     wait_key_pressed();
     nio_free(console);
     
-    tmr_restart();
+    tmr_reset();
+    tmr_start();
     while (true) {
         uint32_t ideal_frame = tmr_ms() / 33; // one frame every 33 milliseconds -> 30 fps
         uint32_t new_frames = ideal_frame - current_frame;
-        
+        //printf("ideal: %lu\ncurrent: %lu\n", ideal_frame, current_frame);
+
         if (new_frames) {
-            uint32_t to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
+            int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
+            new_frames = to_skip + 1; // never render chunks too large to allow adequate skipping
+            
             uint32_t t0 = tmr_ms();
 
+            printf("Rendering: %lu\n", new_frames);
             for (int i = 0; i < new_frames; ++i, --to_skip) {
+                //printf("skipping: %ld\n", to_skip);
                 skip_frame = to_skip > 0;
                 run_one_game_iter();
                 current_frame++;
@@ -99,7 +106,7 @@ void nsp_get_dimensions(uint32_t *width, uint32_t *height) {
 }
 
 bool nsp_start_frame(void) {
-    return  (current_frame % 4) == 0; // ! skip_frame; //
+    return !skip_frame; // (current_frame % 4) == 0; //
 }
 
 static inline uint16_t c4444_to_c565(uint32_t c) { // aaaaaaaabbbbbbbbggggggggrrrrrrrr
