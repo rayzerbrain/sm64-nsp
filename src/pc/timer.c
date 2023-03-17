@@ -29,7 +29,6 @@ uint32_t tmr_ms(void) {
 }
 
 void tmr_start(void) {
-    printf("STARTING VAL: %u\n", start_val);
     *tmr_control = *tmr_control | 0b10000000;
 }
 
@@ -52,6 +51,8 @@ void tmr_init(void) {
     *tmr_control = new_control & 0b01111111; // new controls but disabled
     start_val = *tmr_val;
     *tmr_load = start_val;
+
+    tmr_reset(); // just in case
 
     uint32_t v0 = *tmr_val; // perform calibration
     tmr_start(); 

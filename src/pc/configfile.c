@@ -35,7 +35,7 @@ bool configFiltering             = false;
 bool configEnableSound           = false;
 bool configEnableFog             = false;
 bool config120pMode              = true;
-unsigned int configFrameskip     = 5; // worst case scenario, renders 1 out of every (X + 1) frames
+unsigned int configFrameskip     = 3; // worst case scenario, renders 1 out of every (X + 1) frames
 
 // Keyboard mappings (scancode values)
 #ifdef TARGET_DOS

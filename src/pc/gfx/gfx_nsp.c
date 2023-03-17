@@ -22,7 +22,9 @@ struct GfxWindowManagerAPI {
 #define HALF_WIDTH SCREEN_WIDTH / 2
 #define HALF_HEIGHT SCREEN_HEIGHT / 2
 
-static uint32_t current_frame = 0;
+static uint32_t frames_now = 0;
+static uint32_t frames_prev = 0;
+
 static bool skip_frame = false;
 
 void nsp_init(UNUSED const char *game_name, UNUSED bool start_in_fullscreen) {
@@ -54,28 +56,27 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
     tmr_reset();
     tmr_start();
     while (true) {
-        uint32_t ideal_frame = tmr_ms() / 33; // one frame every 33 milliseconds -> 30 fps
-        uint32_t new_frames = ideal_frame - current_frame;
-        //printf("ideal: %lu\ncurrent: %lu\n", ideal_frame, current_frame);
+        frames_now = tmr_ms() / 33; // one frame every 33 milliseconds -> 30 fps
+        uint32_t new_frames = frames_now - frames_prev;
 
         if (new_frames) {
+            //printf("ideal: %lu\ncurrent: %lu\n", frames_now, frames_prev); // PRINTING TOO MUCH ON HARDWARE CAUSES EXTREME TEARING
+
             int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
-            new_frames = to_skip + 1; // never render chunks too large to allow adequate skipping
             
             uint32_t t0 = tmr_ms();
 
-            printf("Rendering: %lu\n", new_frames);
+            //printf("Rendering: %lu\nSkipping: %lu\n", new_frames, to_skip);
             for (int i = 0; i < new_frames; ++i, --to_skip) {
                 //printf("skipping: %ld\n", to_skip);
                 skip_frame = to_skip > 0;
                 run_one_game_iter();
-                current_frame++;
 
                 if (isKeyPressed(KEY_NSPIRE_ESC)) {
                     return;
                 }
             }
-            printf("tFRAME: %lu\n", tmr_ms() - t0);
+            //printf("tFRAME: %lu\n", tmr_ms() - t0);
 
 
             // DEBUG
@@ -84,7 +85,7 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
                 if (!nio_init(console, NIO_MAX_COLS, NIO_MAX_ROWS, 0, 0, NIO_COLOR_WHITE, NIO_COLOR_BLACK, true))
                     abort();
 
-                nio_printf("Elapsed: %lu\nCurrent frame: %lu\ntFrame: %lu\n\n", tmr_ms(), current_frame, tmr_ms() - t0);
+                nio_printf("Elapsed: %lu\nIdeal frame: %lu\nCurrent frame: %lu\ntFrame: %lu\n\n", tmr_ms(), frames_now, frames_prev, tmr_ms() - t0);
 
                 wait_key_pressed();
                 nio_free(console);
@@ -167,7 +168,7 @@ double nsp_get_time(void) {
 
 void nsp_shutdown(void) {
     lcd_init(SCR_TYPE_INVALID);
-    tmr_shutdown();
+    //tmr_shutdown(); // BANDAID FIX: attempting to restore old timer soft locks calc. not required but could be problematic? 
 }
 
 struct GfxWindowManagerAPI gfx_nsp_api = { nsp_init,

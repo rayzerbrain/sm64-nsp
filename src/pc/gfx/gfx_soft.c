@@ -23,9 +23,6 @@
 #define MAX_TEXTURES 3072
 #define TEXCACHE_STEP 0x10000
 
-#pragma GCC push_options
-#pragma GCC optimize ("-Og")
-
 enum WrapType {
     WRAP_REPEAT = 0,
     WRAP_CLAMP  = 1,
@@ -779,13 +776,15 @@ static struct ShaderProgram *gfx_soft_create_and_load_new_shader(uint32_t shader
 
     return prg;
 }
-
+#pragma GCC push_options // BANDAID FIX: compiling this function with any other optimization level crashes the emulator for some reason
+#pragma GCC optimize("-Og")
 static struct ShaderProgram *gfx_soft_lookup_shader(uint32_t shader_id) {
     for (size_t i = 0; i < shader_program_pool_size; i++)
         if (shader_program_pool[i].shader_id == shader_id)
             return &shader_program_pool[i];
     return NULL;
 }
+#pragma GCC pop_options
 
 static void gfx_soft_shader_get_info(struct ShaderProgram *prg, uint8_t *num_inputs, bool used_textures[2]) {
     *num_inputs = prg->cc.num_inputs;
@@ -1087,4 +1086,4 @@ struct GfxRenderingAPI gfx_soft_api = {
     gfx_soft_set_fog_color,
     gfx_soft_shutdown,
 };
-#pragma GCC pop_options
+
