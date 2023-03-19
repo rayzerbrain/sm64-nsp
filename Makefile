@@ -314,7 +314,7 @@ ifeq ($(TARGET_WEB),1)
 else ifeq ($(DEBUG),1)
   OPT_FLAGS := -g
 else
-  OPT_FLAGS := -Ofast
+  OPT_FLAGS := -ffast-math -O2
   #-fno-dse -fno-if-conversion -fno-if-conversion2 -fno-inline-functions-called-once -fno-ipa-modref -fno-move-loop-invariants -fno-ssa-phiopt -fno-tree-bit-ccp -fno-tree-dse -fno-tree-pta -fno-tree-sra 
 endif
 endif

@@ -63,7 +63,8 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
             //printf("ideal: %lu\ncurrent: %lu\n", frames_now, frames_prev); // PRINTING TOO MUCH ON HARDWARE CAUSES EXTREME TEARING
 
             int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
-            
+            new_frames = to_skip + 1;
+
             uint32_t t0 = tmr_ms();
 
             //printf("Rendering: %lu\nSkipping: %lu\n", new_frames, to_skip);
@@ -93,6 +94,8 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
             }
              
         } // mostly borrowed from dos implementation
+
+        frames_prev = frames_now;
     }
 }
 

@@ -1865,7 +1865,7 @@ void gfx_run(Gfx *commands) {
     gfx_rapi->end_frame();
     gfx_wapi->swap_buffers_begin();
 
-    printf("tFLUSHING: %llu\ntFULL_RENDER: %llu\n", tFlushing, tmr_ms() - t0);
+    //printf("tFLUSHING: %llu\ntFULL_RENDER: %llu\n", tFlushing, tmr_ms() - t0);
 }
 
 void gfx_end_frame(void) {
