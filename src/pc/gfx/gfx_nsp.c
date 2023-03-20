@@ -1,24 +1,15 @@
-// #ifdef TARGET_NSP
-
 #include <libndls.h>
 #include <SDL/SDL.h>
 
 #include "gfx_window_manager_api.h"
-#include "gfx_soft.h"
+#include "gfx_backend.h"
 #include "macros.h"
 #include "nspireio.h"
 
-#include "../configfile.h"
-#include "../timer.h"
+#include "configfile.h"
+#include "timer.h"
 
-/*
-struct GfxWindowManagerAPI {
-    bool (*start_frame)(void);
-    void (*swap_buffers_begin)(void);
-    void (*swap_buffers_end)(void);
-};
 
-*/
 #define HALF_WIDTH SCREEN_WIDTH / 2
 #define HALF_HEIGHT SCREEN_HEIGHT / 2
 

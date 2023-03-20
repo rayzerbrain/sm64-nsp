@@ -1,5 +1,5 @@
-#ifndef GFX_PC_H
-#define GFX_PC_H
+#ifndef GFX_FRONTEND_H
+#define GFX_FRONTEND_H
 
 #include <stdbool.h>
 #include <stdint.h>

@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "gfx_fix.h"
+#include "fixed_pt.h"
 
 struct ShaderProgram;
 

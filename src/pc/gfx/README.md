@@ -8,7 +8,7 @@ Supported windowing systems are GLX (used on Linux), DXGI (used on Windows) and 
 
 # Usage
 
-See `gfx_pc.h`. You will also need a copy of `PR/gbi.h`, found in libultra.
+See `gfx_frontend.h`. You will also need a copy of `PR/gbi.h`, found in libultra.
 
 First call `gfx_init(struct GfxWindowManagerAPI *wapi, struct GfxRenderingAPI *rapi, const char *game_name, bool start_in_fullscreen)` and supply the desired backends at program start.
 

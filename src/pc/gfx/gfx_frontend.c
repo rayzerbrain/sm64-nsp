@@ -10,14 +10,14 @@
 #endif
 #include <PR/gbi.h>
 
-#include "gfx_pc.h"
+#include "gfx_frontend.h"
 #include "gfx_cc.h"
 #include "gfx_window_manager_api.h"
 #include "gfx_rendering_api.h"
-#include "gfx_fix.h"
 
-#include "pc/configfile.h"
-#include "pc/timer.h"
+#include "configfile.h"
+#include "timer.h"
+#include "fixed_pt.h"
 
 #define SUPPORT_CHECK(x) assert(x)
 
@@ -38,31 +38,12 @@
 #define MAX_LIGHTS 2
 #define MAX_VERTICES 64
 
-// clip triangles for the software rasterizer in advance
-#define GFX_MANUAL_CLIPPING 1
-
-#ifdef ENABLE_SOFTRAST
-// leave colors as 0-255 floats
-#define GFX_DONT_SCALE_COLORS 1
 // don't put in fog color
 #define GFX_NO_FOG_COLOR 1
 // premultiply by W
 #define GFX_W_PREMULT 1
-#endif
-
-#ifdef GFX_DONT_SCALE_COLORS
+// leave colors as 0-255 floats
 #define GFX_COLOR_ONE 255
-#define GFX_COLOR_CONVERT(x) (x)
-#else
-#define GFX_COLOR_ONE 1
-#define GFX_COLOR_CONVERT(x) (x / 255.f)
-#endif
-
-#ifdef GFX_W_PREMULT
-#define GFX_OUT_PROP(x) ((x) * w_inv)
-#else
-#define GFX_OUT_PROP(x) (x)
-#endif
 
 enum {
     CLIP_NONE   = 0,
@@ -862,12 +843,7 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
     const uint32_t tex_width = (rdp.texture_tile.lrs - rdp.texture_tile.uls + 4) / 4;
     const uint32_t tex_height = (rdp.texture_tile.lrt - rdp.texture_tile.ult + 4) / 4;
 
-#ifndef GFX_W_PREMULT
-    const bool z_is_from_0_to_1 = gfx_rapi->z_is_from_0_to_1();
-#endif
-
     for (int i = 0; i < 3; i++) {
-#ifdef GFX_W_PREMULT
         const fix64 w = FLOAT_2_FIX(v_arr[i]->w);
         const fix64 w_inv = FIX_INV(w);
         buf_vbo[buf_vbo_len++] = fix_mult(FLOAT_2_FIX(v_arr[i]->x), w_inv);
@@ -875,17 +851,8 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
         buf_vbo[buf_vbo_len++] = fix_mult(
                                     fix_mult(FLOAT_2_FIX(v_arr[i]->z) + w, FIX_ONE_HALF),
                                     w_inv);
+
         buf_vbo[buf_vbo_len++] = w_inv; // store inverted W right away to save softrast the trouble
-#else
-        float z = v_arr[i]->z, w = v_arr[i]->w;
-        if (z_is_from_0_to_1) {
-            z = (z + w) / 2.0f;
-        }
-        buf_vbo[buf_vbo_len++] = v_arr[i]->x;
-        buf_vbo[buf_vbo_len++] = v_arr[i]->y;
-        buf_vbo[buf_vbo_len++] = z;
-        buf_vbo[buf_vbo_len++] = w;
-#endif
 
         if (use_texture) {
             fix64 u = (FLOAT_2_FIX(v_arr[i]->u) - INT_2_FIX(rdp.texture_tile.uls * 8)) >> 5;
@@ -900,12 +867,7 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
         }
 
         if (use_fog) {
-#ifndef GFX_NO_FOG_COLOR
-            buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(rdp.fog_color.r));
-            buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(rdp.fog_color.g));
-            buf_vbo[buf_vbo_len++] = GFX_OUT_PROP(GFX_COLOR_CONVERT(rdp.fog_color.b));
-#endif
-            buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(v_arr[i]->color.a) * w_inv; // fog factor (not alpha)
+            buf_vbo[buf_vbo_len++] = v_arr[i]->color.a * w_inv; // fog factor (not alpha)
         }
 
         for (int j = 0; j < num_inputs; j++) {
@@ -937,15 +899,15 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
                         break;
                 }
                 if (k == 0) {
-                    buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(color->r) * w_inv;
-                    buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(color->g) * w_inv;
-                    buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(color->b) * w_inv;
+                    buf_vbo[buf_vbo_len++] = color->r * w_inv;
+                    buf_vbo[buf_vbo_len++] = color->g * w_inv;
+                    buf_vbo[buf_vbo_len++] = color->b * w_inv;
                 } else {
                     if (use_fog && color == &v_arr[i]->color) {
                         // Shade alpha is 100% for fog
                         buf_vbo[buf_vbo_len++] = GFX_COLOR_ONE * w_inv;
                     } else {
-                        buf_vbo[buf_vbo_len++] = GFX_COLOR_CONVERT(color->a) * w_inv;
+                        buf_vbo[buf_vbo_len++] = color->a * w_inv;
                     }
                 }
             }
@@ -961,7 +923,6 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
     }
 }
 
-#ifdef GFX_MANUAL_CLIPPING
 static inline float flerp(const float v0, const float v1, const float t) {
     return v0 + t * (v1 - v0);
 }
@@ -1052,7 +1013,6 @@ static inline bool gfx_clip_triangle(struct LoadedVertex *v1, struct LoadedVerte
 
     return true;
 }
-#endif
 
 static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx) {
     struct LoadedVertex *v1 = &rsp.loaded_vertices[vtx1_idx];
@@ -1093,13 +1053,10 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx) {
         }
     }
 
-#ifdef GFX_MANUAL_CLIPPING
     // clip the triangle and put the resulting triangles into the buffer
     // otherwise put the current triangle
     if (!gfx_clip_triangle(v1, v2, v3, clip_and))
-#endif
-
-    gfx_push_triangle(v1, v2, v3);
+        gfx_push_triangle(v1, v2, v3);
 }
 
 static void gfx_sp_geometry_mode(uint32_t clear, uint32_t set) {

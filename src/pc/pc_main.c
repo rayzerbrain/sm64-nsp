@@ -7,10 +7,10 @@
 #include "game/memory.h"
 #include "audio/external.h"
 
-#include "gfx/gfx_pc.h"
-#include "gfx/gfx_soft.h"
+#include "gfx/gfx_frontend.h"
+#include "gfx/gfx_backend.h"
 #include "gfx/gfx_nsp.h"
-#include "gfx/gfx_fix.h"
+#include "fixed_pt.h"
 
 #include "configfile.h"
 #include "timer.h"
