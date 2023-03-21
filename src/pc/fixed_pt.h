@@ -45,12 +45,13 @@ static inline int32_t fix_mult_i(const fix64 fix1, const fix64 fix2) { // multip
         + (int32_t)i1 * (int32_t)i2;
 }
 
-static inline fix64 fix_div_s(const fix64 num, const fix64 denom) { //single precision, assumes non zero denominator
-    return FLOAT_2_FIX(FIX_2_FLOAT(num) / FIX_2_FLOAT(denom));
+// assumes non zero denominators
+static inline fix64 fix_div_s(const fix64 num, const fix64 denom) { // much easier than finding fast integer division (?)
+    return (fix64)((float)num / FIX_2_FLOAT(denom));
 }
 
 static inline fix64 fix_div_d(const fix64 num, const fix64 denom) {
-    return DOUBLE_2_FIX(FIX_2_DOUBLE(num) / FIX_2_DOUBLE(denom));
+    return (fix64)((double)num / FIX_2_DOUBLE(denom));
 }
 
 

@@ -525,9 +525,10 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
         for (i = 2; i < nprops; ++i) p[i] = p_a[i] + fix_mult(dx, dp[i].x); \
         idx = scr_width * (scr_height - y - 1) + x; \
         /* draw scanline from current x_a to current x_b */ \
-        while (x++ < x_end) { \
+         while (x++ < x_end) { \
             uz = u16clamp(FIX_2_INT(p[2] * 65535 + z_offset)); \
             if (!z_test || uz <= z_buffer[idx]) { \
+                /* Improve efficiency here? w is 1 very often */ \
                 w = p[3] == FIX_ONE ? FIX_ONE : FIX_INV(p[3]); /* the combiner will multiply by w any props it needs to persp correct */ \
                 draw_fn(idx, uz, cur_shader->combine(w, p + 4)); \
             } \

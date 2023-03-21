@@ -104,7 +104,7 @@ bool nsp_start_frame(void) {
     return !skip_frame; // (current_frame % 4) == 0; //
 }
 
-static inline uint16_t c4444_to_c565(uint32_t c) { // aaaaaaaabbbbbbbbggggggggrrrrrrrr
+static inline uint16_t c4444_to_c565(uint32_t c) { // aaaaaaaa bbbbbbbb gggggggg rrrrrrrr -> rrrrr gggggg bbbbb
     return ((c & 0b11111000) << 8) | ((c & 0b1111110000000000) >> 5) | ((c >> 19) & 0b11111);
 }
 
@@ -120,24 +120,21 @@ void nsp_swap_buffers_end(void) {
         // spread 160 * 120 img to fill whole screen, not just top left quarter
         int img_pix = 0;
         for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i += 2 * SCREEN_WIDTH) { // skip a row
-            for (int col = 0; col < SCREEN_WIDTH; col += 2, img_pix++) {
+            for (int col = 0; col < SCREEN_WIDTH; col += 2, img_pix++) { // skip a column
                 uint16_t c16 = c4444_to_c565(gfx_output[img_pix]);
                 int index = i + col;
 
                 buffer[index] = c16;
                 buffer[index + 1] = c16;
                 buffer[index + SCREEN_WIDTH] = c16;
-                buffer[index + SCREEN_WIDTH + 1] =
-                    c16; // expand single pixel to 2*2 square, towards bottom right
+                buffer[index + SCREEN_WIDTH + 1] =  c16; // expand single pixel to 2*2 square, towards bottom right
             }
         }
     } else {
         for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
+            uint32_t c32 = gfx_output[i];
 
-            uint32_t c32 = gfx_output[i]; // aaaaaaaabbbbbbbbggggggggrrrrrrrr
-
-            // r + g + b
-            buffer[i] = c4444_to_c565(c32); // rrrrr gggggg bbbbb
+            buffer[i] = c4444_to_c565(c32);
         }
     }
 

@@ -38,4 +38,13 @@ void osContGetReadData(OSContPad *pad) {
         pad->stick_y = 127;
     if (isKeyPressed(KEY_NSPIRE_DOWN) || isKeyPressed(KEY_NSPIRE_RIGHTDOWN) || isKeyPressed(KEY_NSPIRE_DOWNLEFT))
         pad->stick_y = -128;
+
+    if (isKeyPressed(KEY_NSPIRE_8))
+        pad->button |= U_CBUTTONS;
+    if (isKeyPressed(KEY_NSPIRE_2))
+        pad->button |= D_CBUTTONS;
+    if (isKeyPressed(KEY_NSPIRE_6))
+        pad->button |= R_CBUTTONS;
+    if (isKeyPressed(KEY_NSPIRE_4))
+        pad->button |= L_CBUTTONS;
 }
