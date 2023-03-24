@@ -97,15 +97,15 @@ static struct ColorCombiner color_combiner_pool[64];
 static uint8_t color_combiner_pool_size;
 
 static struct RSP {
-    float modelview_matrix_stack[11][4][4];
+    fix64 modelview_matrix_stack[11][4][4];
     uint8_t modelview_matrix_stack_size;
 
-    float MP_matrix[4][4];
-    float P_matrix[4][4];
+    fix64 MP_matrix[4][4];
+    fix64 P_matrix[4][4];
 
     Light_t current_lights[MAX_LIGHTS + 1];
-    float current_lights_coeffs[MAX_LIGHTS][3];
-    float current_lookat_coeffs[2][3]; // lookat_x, lookat_y
+    fix64 current_lights_coeffs[MAX_LIGHTS][3];
+    fix64 current_lookat_coeffs[2][3]; // lookat_x, lookat_y
     uint8_t current_num_lights; // includes ambient light
     bool lights_changed;
 
@@ -534,55 +534,57 @@ static inline float rsqrtf(const float x) {
     return y;
 }
 
-static inline void gfx_normalize_vector(float v[3]) {
-    const float s = rsqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-    v[0] *= s;
-    v[1] *= s;
-    v[2] *= s;
+static inline void gfx_normalize_vector(fix64 v[3]) { // Improve this, it looks ugly
+    const fix64 s = FLOAT_2_FIX(rsqrtf(FIX_2_FLOAT(
+        fix_mult(v[0], v[0]) + fix_mult(v[1], v[1]) + fix_mult(v[2], v[2])
+    )));
+    v[0] = fix_mult(v[0], s);
+    v[1] = fix_mult(v[1], s);
+    v[2] = fix_mult(v[2], s);
 }
 
-static inline void gfx_transposed_matrix_mul(float *restrict res, const float *restrict a, const float (*restrict b)[4]) {
-    res[0] = a[0] * b[0][0] + a[1] * b[0][1] + a[2] * b[0][2];
-    res[1] = a[0] * b[1][0] + a[1] * b[1][1] + a[2] * b[1][2];
-    res[2] = a[0] * b[2][0] + a[1] * b[2][1] + a[2] * b[2][2];
+static inline void gfx_transposed_matrix_mul(fix64 *restrict res, const fix64 *restrict a, const fix64 (*restrict b)[4]) {
+    res[0] = fix_mult(a[0], b[0][0]) + fix_mult(a[1], b[0][1]) + fix_mult(a[2], b[0][2]);
+    res[1] = fix_mult(a[0], b[1][0]) + fix_mult(a[1], b[1][1]) + fix_mult(a[2], b[1][2]);
+    res[2] = fix_mult(a[0], b[2][0]) + fix_mult(a[1], b[2][1]) + fix_mult(a[2], b[2][2]);
 }
 
-static inline void calculate_normal_dir(const Light_t *light, float coeffs[3]) {
-    float light_dir[3] = {
-        light->dir[0] / 127.0f,
-        light->dir[1] / 127.0f,
-        light->dir[2] / 127.0f
+static inline void calculate_normal_dir(const Light_t *light, fix64 coeffs[3]) {
+    fix64 light_dir[3] = {
+        INT_2_FIX(light->dir[0]) / 127,
+        INT_2_FIX(light->dir[1]) / 127,
+        INT_2_FIX(light->dir[2]) / 127
     };
     gfx_transposed_matrix_mul(coeffs, light_dir, rsp.modelview_matrix_stack[rsp.modelview_matrix_stack_size - 1]);
     gfx_normalize_vector(coeffs);
 }
 
-static inline void gfx_matrix_mul_inplace(const float (*restrict a)[4], float (*restrict res)[4]) {
-    float tmp[4][4];
+static inline void gfx_matrix_mul_inplace(const fix64 (*restrict a)[4], fix64 (*restrict res)[4]) {
+    fix64 tmp[4][4];
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-            tmp[i][j] = a[i][0] * res[0][j] +
-                        a[i][1] * res[1][j] +
-                        a[i][2] * res[2][j] +
-                        a[i][3] * res[3][j];
+            tmp[i][j] = fix_mult(a[i][0], res[0][j]) +
+                        fix_mult(a[i][1], res[1][j]) +
+                        fix_mult(a[i][2], res[2][j]) +
+                        fix_mult(a[i][3], res[3][j]);
         }
     }
     memcpy(res, tmp, sizeof(tmp));
 }
 
-static inline void gfx_matrix_mul(float (*restrict res)[4], const float (*restrict a)[4], const float (*restrict b)[4]) {
+static inline void gfx_matrix_mul(fix64 (*restrict res)[4], const fix64 (*restrict a)[4], const fix64 (*restrict b)[4]) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-            res[i][j] = a[i][0] * b[0][j] +
-                        a[i][1] * b[1][j] +
-                        a[i][2] * b[2][j] +
-                        a[i][3] * b[3][j];
+            res[i][j] = fix_mult(a[i][0], res[0][j]) +
+                        fix_mult(a[i][1], res[1][j]) +
+                        fix_mult(a[i][2], res[2][j]) +
+                        fix_mult(a[i][3], res[3][j]);
         }
     }
 }
 
 static void gfx_sp_matrix(uint8_t parameters, const int32_t *addr) {
-    float matrix[4][4];
+    fix64 matrix[4][4];
 #ifndef GBI_FLOATS
     // Original GBI where fixed point matrices are used
     register int idx;
@@ -591,13 +593,18 @@ static void gfx_sp_matrix(uint8_t parameters, const int32_t *addr) {
             idx = (i << 1) + (j >> 1);
             const int32_t int_part = addr[idx];
             const uint32_t frac_part = addr[8 + idx];
-            matrix[i][j] = (int32_t)((int_part & 0xffff0000) | (frac_part >> 16)) / 65536.f;
-            matrix[i][j + 1] = (int32_t)((int_part << 16) | (frac_part & 0xffff)) / 65536.f;
+            matrix[i][j] = FIX_32_2_64((int_part & 0xffff0000) | (frac_part >> 16));
+            matrix[i][j + 1] = FIX_32_2_64((int_part << 16) | (frac_part & 0xffff));
         }
     }
 #else
     // For a modified GBI where fixed point values are replaced with floats
-    memcpy(matrix, addr, sizeof(matrix));
+    register int idx;
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j ++) {
+            matrix[i][j] = FLOAT_2_FIX(*(float*)addr++);
+        }
+    }
 #endif
 
     if (parameters & G_MTX_PROJECTION) {
@@ -633,7 +640,7 @@ static void gfx_sp_pop_matrix(uint32_t count) {
 }
 
 static inline float gfx_adjust_x_for_aspect_ratio(float x) {
-    return x * (4.0f / 3.0f) / (float)gfx_current_dimensions.aspect_ratio;
+    return x; // ASSUMES EXISTING ASPECT OF 4 / 3
 }
 
 static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *vertices) {
@@ -642,12 +649,27 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
         const Vtx_tn *vn = &vertices[i].n;
         struct LoadedVertex *d = &rsp.loaded_vertices[dest_index];
 
-        float x = v->ob[0] * rsp.MP_matrix[0][0] + v->ob[1] * rsp.MP_matrix[1][0] + v->ob[2] * rsp.MP_matrix[2][0] + rsp.MP_matrix[3][0];
-        float y = v->ob[0] * rsp.MP_matrix[0][1] + v->ob[1] * rsp.MP_matrix[1][1] + v->ob[2] * rsp.MP_matrix[2][1] + rsp.MP_matrix[3][1];
-        float z = v->ob[0] * rsp.MP_matrix[0][2] + v->ob[1] * rsp.MP_matrix[1][2] + v->ob[2] * rsp.MP_matrix[2][2] + rsp.MP_matrix[3][2];
-        float w = v->ob[0] * rsp.MP_matrix[0][3] + v->ob[1] * rsp.MP_matrix[1][3] + v->ob[2] * rsp.MP_matrix[2][3] + rsp.MP_matrix[3][3];
+        fix64 x = fix_mult(v->ob[0], rsp.MP_matrix[0][0]) 
+            + fix_mult(v->ob[1], rsp.MP_matrix[1][0]) 
+            + fix_mult(v->ob[2], rsp.MP_matrix[2][0]) 
+            + rsp.MP_matrix[3][0];
 
-        x = gfx_adjust_x_for_aspect_ratio(x);
+        fix64 y = fix_mult(v->ob[0], rsp.MP_matrix[0][1]) 
+            + fix_mult(v->ob[1], rsp.MP_matrix[1][1])
+            + fix_mult(v->ob[2], rsp.MP_matrix[2][1])
+            + rsp.MP_matrix[3][1];
+
+        fix64 z = fix_mult(v->ob[0], rsp.MP_matrix[0][2])
+            + fix_mult(v->ob[1], rsp.MP_matrix[1][2])
+            + fix_mult(v->ob[2], rsp.MP_matrix[2][2])
+            + rsp.MP_matrix[3][2];
+        
+        fix64 w = fix_mult(v->ob[0], rsp.MP_matrix[0][3])
+            + fix_mult(v->ob[1], rsp.MP_matrix[1][3])
+            + fix_mult(v->ob[2], rsp.MP_matrix[2][3])
+            + rsp.MP_matrix[3][3];
+
+        //x = gfx_adjust_x_for_aspect_ratio(x);
 
         short U = v->tc[0] * rsp.texture_scaling_factor.s >> 16;
         short V = v->tc[1] * rsp.texture_scaling_factor.t >> 16;
@@ -669,24 +691,24 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
             int b = rsp.current_lights[rsp.current_num_lights - 1].col[2];
 
             for (int i = 0; i < rsp.current_num_lights - 1; i++) {
-                float intensity = 0;
+                fix64 intensity = 0;
                 intensity += vn->n[0] * rsp.current_lights_coeffs[i][0];
                 intensity += vn->n[1] * rsp.current_lights_coeffs[i][1];
                 intensity += vn->n[2] * rsp.current_lights_coeffs[i][2];
-                intensity /= 127.0f;
+                intensity /= 127;
                 if (intensity > 0.0f) {
-                    r += intensity * rsp.current_lights[i].col[0];
-                    g += intensity * rsp.current_lights[i].col[1];
-                    b += intensity * rsp.current_lights[i].col[2];
+                    r += FIX_2_INT(intensity * rsp.current_lights[i].col[0]);
+                    g += FIX_2_INT(intensity * rsp.current_lights[i].col[1]);
+                    b += FIX_2_INT(intensity * rsp.current_lights[i].col[2]);
                 }
             }
 
-            d->color.r = r > 255 ? 255 : r;
+            d->color.r = r > 255 ? 255 : r; // clamp bytes
             d->color.g = g > 255 ? 255 : g;
             d->color.b = b > 255 ? 255 : b;
 
             if (rsp.geometry_mode & G_TEXTURE_GEN) {
-                float dotx = 0, doty = 0;
+                fix64 dotx = 0, doty = 0;
                 dotx += vn->n[0] * rsp.current_lookat_coeffs[0][0];
                 dotx += vn->n[1] * rsp.current_lookat_coeffs[0][1];
                 dotx += vn->n[2] * rsp.current_lookat_coeffs[0][2];
@@ -694,8 +716,8 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
                 doty += vn->n[1] * rsp.current_lookat_coeffs[1][1];
                 doty += vn->n[2] * rsp.current_lookat_coeffs[1][2];
 
-                U = (int32_t)((dotx / 127.0f + 1.0f) / 4.0f * rsp.texture_scaling_factor.s);
-                V = (int32_t)((doty / 127.0f + 1.0f) / 4.0f * rsp.texture_scaling_factor.t);
+                U = FIX_2_INT(((dotx / 127 + FIX_ONE) >> 2) * rsp.texture_scaling_factor.s);
+                V = FIX_2_INT(((doty / 127 + FIX_ONE) >> 2) * rsp.texture_scaling_factor.t);
             }
         } else {
             d->color.r = v->cn[0];
@@ -703,7 +725,7 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
             d->color.b = v->cn[2];
         }
 
-        d->u = U;
+        d->u = U; // not changed to fixedpt yet
         d->v = V;
 
         // trivial clip rejection
@@ -715,10 +737,10 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
         if (z < -w) d->clip_rej |= CLIP_FAR;
         if (z >  w) d->clip_rej |= CLIP_NEAR;
 
-        d->x = x;
-        d->y = y;
-        d->z = z;
-        d->w = w;
+        d->x = FIX_2_FLOAT(x);
+        d->y = FIX_2_FLOAT(y);
+        d->z = FIX_2_FLOAT(z);
+        d->w = FIX_2_FLOAT(w);
 
         if (configEnableFog && (rsp.geometry_mode & G_FOG)) {
             w = (w == 0.f) ? 1.f / 0.001f : 1.f / w;
