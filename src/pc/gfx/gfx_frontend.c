@@ -575,10 +575,10 @@ static inline void gfx_matrix_mul_inplace(const fix64 (*restrict a)[4], fix64 (*
 static inline void gfx_matrix_mul(fix64 (*restrict res)[4], const fix64 (*restrict a)[4], const fix64 (*restrict b)[4]) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-            res[i][j] = fix_mult(a[i][0], res[0][j]) +
-                        fix_mult(a[i][1], res[1][j]) +
-                        fix_mult(a[i][2], res[2][j]) +
-                        fix_mult(a[i][3], res[3][j]);
+            res[i][j] = fix_mult(a[i][0], b[0][j]) +
+                        fix_mult(a[i][1], b[1][j]) +
+                        fix_mult(a[i][2], b[2][j]) +
+                        fix_mult(a[i][3], b[3][j]);
         }
     }
 }
@@ -601,7 +601,7 @@ static void gfx_sp_matrix(uint8_t parameters, const int32_t *addr) {
     // For a modified GBI where fixed point values are replaced with floats
     register int idx;
     for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j ++) {
+        for (int j = 0; j < 4; j++) {
             matrix[i][j] = FLOAT_2_FIX(*(float*)addr++);
         }
     }
@@ -649,26 +649,10 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
         const Vtx_tn *vn = &vertices[i].n;
         struct LoadedVertex *d = &rsp.loaded_vertices[dest_index];
 
-        fix64 x = fix_mult(v->ob[0], rsp.MP_matrix[0][0]) 
-            + fix_mult(v->ob[1], rsp.MP_matrix[1][0]) 
-            + fix_mult(v->ob[2], rsp.MP_matrix[2][0]) 
-            + rsp.MP_matrix[3][0];
-
-        fix64 y = fix_mult(v->ob[0], rsp.MP_matrix[0][1]) 
-            + fix_mult(v->ob[1], rsp.MP_matrix[1][1])
-            + fix_mult(v->ob[2], rsp.MP_matrix[2][1])
-            + rsp.MP_matrix[3][1];
-
-        fix64 z = fix_mult(v->ob[0], rsp.MP_matrix[0][2])
-            + fix_mult(v->ob[1], rsp.MP_matrix[1][2])
-            + fix_mult(v->ob[2], rsp.MP_matrix[2][2])
-            + rsp.MP_matrix[3][2];
-        
-        fix64 w = fix_mult(v->ob[0], rsp.MP_matrix[0][3])
-            + fix_mult(v->ob[1], rsp.MP_matrix[1][3])
-            + fix_mult(v->ob[2], rsp.MP_matrix[2][3])
-            + rsp.MP_matrix[3][3];
-
+        fix64 x = v->ob[0] * rsp.MP_matrix[0][0] + v->ob[1] * rsp.MP_matrix[1][0] + v->ob[2] * rsp.MP_matrix[2][0] + rsp.MP_matrix[3][0];
+        fix64 y = v->ob[0] * rsp.MP_matrix[0][1] + v->ob[1] * rsp.MP_matrix[1][1] + v->ob[2] * rsp.MP_matrix[2][1] + rsp.MP_matrix[3][1];
+        fix64 z = v->ob[0] * rsp.MP_matrix[0][2] + v->ob[1] * rsp.MP_matrix[1][2] + v->ob[2] * rsp.MP_matrix[2][2] + rsp.MP_matrix[3][2];
+        fix64 w = v->ob[0] * rsp.MP_matrix[0][3] + v->ob[1] * rsp.MP_matrix[1][3] + v->ob[2] * rsp.MP_matrix[2][3] + rsp.MP_matrix[3][3];
         //x = gfx_adjust_x_for_aspect_ratio(x);
 
         short U = v->tc[0] * rsp.texture_scaling_factor.s >> 16;
@@ -872,7 +856,8 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
         buf_vbo[buf_vbo_len++] = fix_mult(FLOAT_2_FIX(v_arr[i]->y), w_inv);
         buf_vbo[buf_vbo_len++] = fix_mult(
                                     fix_mult(FLOAT_2_FIX(v_arr[i]->z) + w, FIX_ONE_HALF),
-                                    w_inv);
+                                    w_inv
+        );
 
         buf_vbo[buf_vbo_len++] = w_inv; // store inverted W right away to save softrast the trouble
 
@@ -1145,7 +1130,7 @@ static void gfx_sp_moveword(uint8_t index, uint16_t offset, uint32_t data) {
             rsp.current_num_lights = data / 24 + 1; // add ambient light
 #else
             // Ambient light is included
-            // The 31th bit is a flag that lights should be recalculated
+            // The 31st bit is a flag that lights should be recalculated
             rsp.current_num_lights = (data - 0x80000000U) / 32;
 #endif
             rsp.lights_changed = 1;
