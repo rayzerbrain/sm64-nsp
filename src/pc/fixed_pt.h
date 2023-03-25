@@ -16,7 +16,6 @@ typedef int64_t fix64;
 #define FIX_2_INT(fix) (((fix) >> FRAC_WIDTH)) // non rounding
 #define FIX_2_FLOAT(fix) ((float) (fix) / (1LL << FRAC_WIDTH))
 #define FIX_2_DOUBLE(fix) ((double) (fix) / (1LL << FRAC_WIDTH))
-#define FIX_32_2_64(fix32) ((fix64)(fix32) << 16) // converts 16.16 to 32.32, only used in one place
 
 #define INT_2_FIX(num) ((fix64)(num) << FRAC_WIDTH) // all fixed point operations must involve two fix64 numbers
 #define FLOAT_2_FIX(f) ((fix64)((f) * (1LL << FRAC_WIDTH))) // shifting float left FRAC_WIDTH bits

@@ -593,13 +593,12 @@ static void gfx_sp_matrix(uint8_t parameters, const int32_t *addr) {
             idx = (i << 1) + (j >> 1);
             const int32_t int_part = addr[idx];
             const uint32_t frac_part = addr[8 + idx];
-            matrix[i][j] = FIX_32_2_64((int_part & 0xffff0000) | (frac_part >> 16));
-            matrix[i][j + 1] = FIX_32_2_64((int_part << 16) | (frac_part & 0xffff));
+            matrix[i][j] = (int64_t) ((int32_t) ((int_part & 0xffff0000) | (frac_part >> 16))) << 16;
+            matrix[i][j + 1] = (int64_t) ((int32_t) ((int_part << 16) | (frac_part & 0xffff))) << 16;
         }
     }
 #else
     // For a modified GBI where fixed point values are replaced with floats
-    register int idx;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             matrix[i][j] = FLOAT_2_FIX(*(float*)addr++);
