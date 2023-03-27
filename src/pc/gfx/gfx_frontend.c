@@ -65,8 +65,8 @@ struct XYWidthHeight {
 };
 
 struct LoadedVertex {
-    float x, y, z, w;
-    float u, v;
+    fix64 x, y, z, w;
+    fix64 u, v;
     struct RGBA color;
     uint8_t clip_rej;
 };
@@ -538,6 +538,7 @@ static inline void gfx_normalize_vector(fix64 v[3]) { // Improve this, it looks 
     const fix64 s = FLOAT_2_FIX(rsqrtf(FIX_2_FLOAT(
         fix_mult(v[0], v[0]) + fix_mult(v[1], v[1]) + fix_mult(v[2], v[2])
     )));
+
     v[0] = fix_mult(v[0], s);
     v[1] = fix_mult(v[1], s);
     v[2] = fix_mult(v[2], s);
@@ -708,8 +709,8 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
             d->color.b = v->cn[2];
         }
 
-        d->u = U; // not changed to fixedpt yet
-        d->v = V;
+        d->u = INT_2_FIX(U);
+        d->v = INT_2_FIX(V);
 
         // trivial clip rejection
         d->clip_rej = 0;
@@ -720,10 +721,10 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
         if (z < -w) d->clip_rej |= CLIP_FAR;
         if (z >  w) d->clip_rej |= CLIP_NEAR;
 
-        d->x = FIX_2_FLOAT(x);
-        d->y = FIX_2_FLOAT(y);
-        d->z = FIX_2_FLOAT(z);
-        d->w = FIX_2_FLOAT(w);
+        d->x = x;
+        d->y = y;
+        d->z = z;
+        d->w = w;
 
         if (configEnableFog && (rsp.geometry_mode & G_FOG)) {
             w = (w == 0.f) ? 1.f / 0.001f : 1.f / w;
@@ -849,20 +850,20 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
     const uint32_t tex_height = (rdp.texture_tile.lrt - rdp.texture_tile.ult + 4) / 4;
 
     for (int i = 0; i < 3; i++) {
-        const fix64 w = FLOAT_2_FIX(v_arr[i]->w);
+        const fix64 w = v_arr[i]->w;
         const fix64 w_inv = FIX_INV(w);
-        buf_vbo[buf_vbo_len++] = fix_mult(FLOAT_2_FIX(v_arr[i]->x), w_inv);
-        buf_vbo[buf_vbo_len++] = fix_mult(FLOAT_2_FIX(v_arr[i]->y), w_inv);
+        buf_vbo[buf_vbo_len++] = fix_mult(v_arr[i]->x, w_inv);
+        buf_vbo[buf_vbo_len++] = fix_mult(v_arr[i]->y, w_inv);
         buf_vbo[buf_vbo_len++] = fix_mult(
-                                    fix_mult(FLOAT_2_FIX(v_arr[i]->z) + w, FIX_ONE_HALF),
+                                    (v_arr[i]->z + w) >> 1,
                                     w_inv
         );
 
         buf_vbo[buf_vbo_len++] = w_inv; // store inverted W right away to save softrast the trouble
 
         if (use_texture) {
-            fix64 u = (FLOAT_2_FIX(v_arr[i]->u) - INT_2_FIX(rdp.texture_tile.uls * 8)) >> 5;
-            fix64 v = (FLOAT_2_FIX(v_arr[i]->v) - INT_2_FIX(rdp.texture_tile.ult * 8)) >> 5;
+            fix64 u = (v_arr[i]->u - INT_2_FIX(rdp.texture_tile.uls * 8)) >> 5;
+            fix64 v = (v_arr[i]->v - INT_2_FIX(rdp.texture_tile.ult * 8)) >> 5;
             if ((rdp.other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) {
                 // Linear filter adds 0.5f to the coordinates
                 u += FIX_ONE_HALF;
@@ -892,7 +893,7 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
                         break;
                     case CC_LOD:
                     {
-                        float distance_frac = (v1->w - 3000.0f) / 3000.0f;
+                        float distance_frac = (FIX_2_FLOAT(v1->w) - 3000.0f) / 3000.0f;
                         if (distance_frac < 0.0f) distance_frac = 0.0f;
                         if (distance_frac > 1.0f) distance_frac = 1.0f;
                         tmp.r = tmp.g = tmp.b = tmp.a = distance_frac * 255.0f;
@@ -929,27 +930,27 @@ static inline void gfx_push_triangle(const struct LoadedVertex *restrict v1, con
     }
 }
 
-static inline float flerp(const float v0, const float v1, const float t) {
-    return v0 + t * (v1 - v0);
+static inline fix64 fix_lerp(const fix64 v0, const fix64 v1, const fix64 t) {
+    return v0 + fix_mult(t, v1 - v0);
 }
 
-static inline struct RGBA rgba_lerp(const struct RGBA c0, const struct RGBA c1, const float t) {
+static inline struct RGBA rgba_lerp(const struct RGBA c0, const struct RGBA c1, const fix64 t) {
     return (struct RGBA){
-        c0.r + (c1.r - c0.r) * t,
-        c0.g + (c1.g - c0.g) * t,
-        c0.b + (c1.b - c0.b) * t,
-        c0.a + (c0.a - c0.a) * t,
+        c0.r + FIX_2_INT((c1.r - c0.r) * t),
+        c0.g + FIX_2_INT((c1.g - c0.g) * t),
+        c0.b + FIX_2_INT((c1.b - c0.b) * t),
+        c0.a + FIX_2_INT((c0.a - c0.a) * t),
     };
 }
 
 static inline bool gfx_clip_triangle(struct LoadedVertex *v1, struct LoadedVertex *v2, struct LoadedVertex *v3, const uint8_t clip_and) {
-    static const float c_planes[][4] = {
-        {  0.0f,  0.0f, -1.0f,  1.0f }, // near
-        {  0.0f,  0.0f,  1.0f,  1.0f }, // far
-        {  0.0f, -1.0f,  0.0f,  1.0f }, // top
-        {  0.0f,  1.0f,  0.0f,  1.0f }, // bottom
-        { -1.0f,  0.0f,  0.0f,  1.0f }, // left
-        {  1.0f,  0.0f,  0.0f,  1.0f }, // right
+    static const int c_planes[][4] = {
+        {  0,  0, -1, 1 }, // near
+        {  0,  0,  1, 1 },  // far
+        {  0, -1,  0, 1 }, // top
+        {  0,  1,  0, 1 },  // bottom
+        { -1,  0,  0, 1 }, // left
+        {  1,  0,  0, 1 },  // right
     };
 
     const uint8_t clip_or = v1->clip_rej | v2->clip_rej | v3->clip_rej;
@@ -968,38 +969,38 @@ static inline bool gfx_clip_triangle(struct LoadedVertex *v1, struct LoadedVerte
         const int outidx = !v_idx;
         const struct LoadedVertex *v_in = v_buf[v_idx];
         struct LoadedVertex *v_out = v_buf[outidx];
-        const float *plane = c_planes[plane_idx];
+        const int *plane = c_planes[plane_idx];
 
         for (int i = 0; i < num_verts; ++i) {
             const struct LoadedVertex *vthis = &v_in[i];
             const struct LoadedVertex *vnext = &v_in[(i + 1) % num_verts];
-            const float d1 = plane[0] * vthis->x + plane[1] * vthis->y + plane[2] * vthis->z + vthis->w;
-            const float d2 = plane[0] * vnext->x + plane[1] * vnext->y + plane[2] * vnext->z + vnext->w;
-            const bool this_in = d1 > 0.0f;
-            const bool next_in = d2 > 0.0f;
+            const fix64 d1 = plane[0] * vthis->x + plane[1] * vthis->y + plane[2] * vthis->z + vthis->w;
+            const fix64 d2 = plane[0] * vnext->x + plane[1] * vnext->y + plane[2] * vnext->z + vnext->w;
+            const bool this_in = d1 > 0;
+            const bool next_in = d2 > 0;
             // current is inside clipping plane, push it into output
             if (this_in) v_out[v_num[outidx]++] = *vthis;
             // one of the vertices is outside, clip the edge and push intersection
             if (this_in ^ next_in) {
                 struct LoadedVertex *xv = &v_out[v_num[outidx]++];
                 if (this_in) {
-                    const float t = d1 / (d1 - d2);
-                    xv->x = flerp(vthis->x, vnext->x, t);
-                    xv->y = flerp(vthis->y, vnext->y, t);
-                    xv->z = flerp(vthis->z, vnext->z, t);
-                    xv->w = flerp(vthis->w, vnext->w, t);
-                    xv->u = flerp(vthis->u, vnext->u, t);
-                    xv->v = flerp(vthis->v, vnext->v, t);
+                    const fix64 t = fix_div_s(d1, d1 - d2);
+                    xv->x = fix_lerp(vthis->x, vnext->x, t);
+                    xv->y = fix_lerp(vthis->y, vnext->y, t);
+                    xv->z = fix_lerp(vthis->z, vnext->z, t);
+                    xv->w = fix_lerp(vthis->w, vnext->w, t);
+                    xv->u = fix_lerp(vthis->u, vnext->u, t);
+                    xv->v = fix_lerp(vthis->v, vnext->v, t);
                     xv->color = rgba_lerp(vthis->color, vnext->color, t);
                     xv->clip_rej = 0;
                 } else {
-                    const float t = d2 / (d2 - d1);
-                    xv->x = flerp(vnext->x, vthis->x, t);
-                    xv->y = flerp(vnext->y, vthis->y, t);
-                    xv->z = flerp(vnext->z, vthis->z, t);
-                    xv->w = flerp(vnext->w, vthis->w, t);
-                    xv->u = flerp(vnext->u, vthis->u, t);
-                    xv->v = flerp(vnext->v, vthis->v, t);
+                    const fix64 t = fix_div_s(d2, d2 - d1);
+                    xv->x = fix_lerp(vnext->x, vthis->x, t);
+                    xv->y = fix_lerp(vnext->y, vthis->y, t);
+                    xv->z = fix_lerp(vnext->z, vthis->z, t);
+                    xv->w = fix_lerp(vnext->w, vthis->w, t);
+                    xv->u = fix_lerp(vnext->u, vthis->u, t);
+                    xv->v = fix_lerp(vnext->v, vthis->v, t);
                     xv->color = rgba_lerp(vnext->color, vthis->color, t);
                 }
             }
@@ -1034,11 +1035,11 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx) {
     }
 
     if ((rsp.geometry_mode & G_CULL_BOTH) != 0) {
-        float dx1 = v1->x / (v1->w) - v2->x / (v2->w);
-        float dy1 = v1->y / (v1->w) - v2->y / (v2->w);
-        float dx2 = v3->x / (v3->w) - v2->x / (v2->w);
-        float dy2 = v3->y / (v3->w) - v2->y / (v2->w);
-        float cross = dx1 * dy2 - dy1 * dx2;
+        fix64 dx1 = fix_div_s(v1->x, v1->w) - fix_div_s(v2->x, v2->w);
+        fix64 dy1 = fix_div_s(v1->y, v1->w) - fix_div_s(v2->y, v2->w);
+        fix64 dx2 = fix_div_s(v3->x, v3->w) - fix_div_s(v2->x, v2->w);
+        fix64 dy2 = fix_div_s(v3->y, v3->w) - fix_div_s(v2->y, v2->w);
+        fix64 cross = fix_mult(dx1, dy2) - fix_mult(dy1, dx2);
 
         if ((v1->w < 0) ^ (v2->w < 0) ^ (v3->w < 0)) {
             // If one vertex lies behind the eye, negating cross will give the correct result.
