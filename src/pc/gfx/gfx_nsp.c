@@ -6,9 +6,9 @@
 #include "macros.h"
 #include "nspireio.h"
 
-#include "configfile.h"
-#include "timer.h"
-
+#include "pc/configfile.h"
+#include "pc/timer.h"
+#include "pc/profiling.h"
 
 #define HALF_WIDTH SCREEN_WIDTH / 2
 #define HALF_HEIGHT SCREEN_HEIGHT / 2
@@ -28,19 +28,29 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
     if (!nio_init(console, NIO_MAX_COLS, NIO_MAX_ROWS, 0, 0, NIO_COLOR_WHITE, NIO_COLOR_BLACK, true))
         abort();
     nio_set_default(console);
-    nio_printf("Starting val: %lu\n", _tmr_val());
     
     tmr_init();
     
+    // timer sanity check
     uint32_t t0 = tmr_ms();
-    nio_printf("ms0: %lu\n", t0);
-    nio_printf("val0: %lu\n", _tmr_val());
+    nio_printf("ms0 (should be zero): %lu\n", t0);
     msleep(1000);
     uint64_t t1 = tmr_ms();
-    nio_printf("val1: %lu\n", _tmr_val());
-    nio_printf("ms1: %llu\n", t1);
-    nio_printf("ms delta (should be ~1000): %llu\n", t1 - t0);
-    nio_printf("Frameskip: %u\n", configFrameskip);
+    nio_printf("ms delta (should be ~1000): %llu\n\n", t1 - t0);
+
+    // info
+    nio_puts("DEFAULT CONTROLS:\n"
+        "Start buttong: Enter\n"
+        "Analog stick: Touchpad\n"
+        "A button: menu\n"
+        "B button: del\n"
+        "Z trigger: doc\n"
+        "C buttons (up, right down, left): 8, 6, 2, 4, respectively\n\n");
+
+    nio_puts("Press ESC to exit, and CTRL for profiling\n");
+
+    nio_printf("Frameskip config: %u\nPress any key to continue...\n", configFrameskip);
+
     wait_key_pressed();
     nio_free(console);
     
@@ -54,14 +64,13 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
             //printf("ideal: %lu\ncurrent: %lu\n", frames_now, frames_prev); // PRINTING TOO MUCH ON HARDWARE CAUSES EXTREME TEARING
 
             int to_skip = (new_frames > configFrameskip) ? configFrameskip : (new_frames - 1); // catch up by skipping up to configFrameskip frames
-            new_frames = to_skip + 1;
 
             uint32_t t0 = tmr_ms();
 
             //printf("Rendering: %lu\nSkipping: %lu\n", new_frames, to_skip);
-            for (int i = 0; i < new_frames; ++i, --to_skip) {
+            for (int i = 0; i < to_skip + 1; ++i) { // render only one frame out of this chunk
                 //printf("skipping: %ld\n", to_skip);
-                skip_frame = to_skip > 0;
+                skip_frame = i < to_skip;
                 run_one_game_iter();
 
                 if (isKeyPressed(KEY_NSPIRE_ESC)) {
@@ -71,13 +80,25 @@ void nsp_main_loop(void (*run_one_game_iter)(void)) {
             //printf("tFRAME: %lu\n", tmr_ms() - t0);
 
 
-            // DEBUG
+            // Status screen / debug
             if (isKeyPressed(KEY_NSPIRE_CTRL)) {
                 tmr_stop();
                 if (!nio_init(console, NIO_MAX_COLS, NIO_MAX_ROWS, 0, 0, NIO_COLOR_WHITE, NIO_COLOR_BLACK, true))
                     abort();
 
-                nio_printf("Elapsed: %lu\nIdeal frame: %lu\nCurrent frame: %lu\ntFrame: %lu\n\n", tmr_ms(), frames_now, frames_prev, tmr_ms() - t0);
+                uint32_t tDelta = tmr_ms() - t0;
+                float fps = 1000.f / tDelta;
+
+                nio_printf("Total elapsed (ms): %lu\n"
+                    "Backend Gfx time: %d\n"
+                    "Front + Backend Gfx time: %d\n"
+                    "Total frame time (ms): %lu\n"
+                    "FPS, physical: %f\n"
+                    "FPS, virtual: %f\n"
+                    "^ This includes frames skipped\n"
+                    "Tris this frame: %d\n"
+                    "Frames skipped: %d\n",
+                    tmr_ms(), tFlushing, tFullRender, tDelta, fps, fps * (to_skip + 1), numTris, to_skip);
 
                 wait_key_pressed();
                 nio_free(console);

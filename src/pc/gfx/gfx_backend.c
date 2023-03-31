@@ -16,7 +16,8 @@
 #include "gfx_backend.h"
 #include "gfx_cc.h"
 #include "macros.h"
-#include "fixed_pt.h"
+
+#include "pc/fixed_pt.h"
 
 #define ALIGN(x, a) (((x) + (a - 1)) & ~(a - 1))
 

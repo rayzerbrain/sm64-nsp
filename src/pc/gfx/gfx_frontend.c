@@ -15,9 +15,10 @@
 #include "gfx_window_manager_api.h"
 #include "gfx_rendering_api.h"
 
-#include "configfile.h"
-#include "timer.h"
-#include "fixed_pt.h"
+#include "pc/configfile.h"
+#include "pc/timer.h"
+#include "pc/fixed_pt.h"
+#include "pc/profiling.h"
 
 #define SUPPORT_CHECK(x) assert(x)
 
@@ -175,14 +176,13 @@ static size_t buf_vbo_num_tris;
 static struct GfxWindowManagerAPI *gfx_wapi;
 static struct GfxRenderingAPI *gfx_rapi;
 
-static uint64_t tFlushing = 0;
-
 static void gfx_flush(void) {
     if (buf_vbo_len > 0) {
         uint64_t t0 = tmr_ms();
         gfx_rapi->draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
         tFlushing += tmr_ms() - t0;
-        
+        numTris += buf_vbo_num_tris;
+
         buf_vbo_len = 0;
         buf_vbo_num_tris = 0;
     }
@@ -1821,7 +1821,7 @@ void gfx_run(Gfx *commands) {
     }
     dropped_frame = false;
 
-    tFlushing = 0;
+    profiling_reset();
     uint64_t t0 = tmr_ms();
     gfx_rapi->start_frame();
     gfx_run_dl(commands);
@@ -1829,6 +1829,7 @@ void gfx_run(Gfx *commands) {
     gfx_rapi->end_frame();
     gfx_wapi->swap_buffers_begin();
 
+    tFullRender = tmr_ms() - t0;
     //printf("tFLUSHING: %llu\ntFULL_RENDER: %llu\n", tFlushing, tmr_ms() - t0);
 }
 
