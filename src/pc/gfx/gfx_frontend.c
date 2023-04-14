@@ -535,9 +535,8 @@ static inline float rsqrtf(const float x) {
 }
 
 static inline void gfx_normalize_vector(fix64 v[3]) { // Improve this, it looks ugly
-    const fix64 s = FLOAT_2_FIX(rsqrtf(FIX_2_FLOAT(
-        fix_mult(v[0], v[0]) + fix_mult(v[1], v[1]) + fix_mult(v[2], v[2])
-    )));
+    float input = FIX_2_FLOAT(fix_mult(v[0], v[0]) + fix_mult(v[1], v[1]) + fix_mult(v[2], v[2]));
+    fix64 s = FLOAT_2_FIX(rsqrtf(input));
 
     v[0] = fix_mult(v[0], s);
     v[1] = fix_mult(v[1], s);
@@ -1830,7 +1829,6 @@ void gfx_run(Gfx *commands) {
     gfx_wapi->swap_buffers_begin();
 
     tFullRender = tmr_ms() - t0;
-    //printf("tFLUSHING: %llu\ntFULL_RENDER: %llu\n", tFlushing, tmr_ms() - t0);
 }
 
 void gfx_end_frame(void) {

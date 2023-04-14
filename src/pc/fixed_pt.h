@@ -5,13 +5,15 @@
 
 typedef int64_t fix64;
 
-#define FRAC_WIDTH 32 // non configurable for mult
+#define FRAC_WIDTH 32 // non configurable for mult operation
 
-#define GET_INT(fix) ((fix) >> 32)
-#define GET_FRAC(fix) ((fix) & 0xffffffff)
+#define GET_INT(fix) ((fix) >> FRAC_WIDTH)
+#define GET_FRAC(fix) ((fix) & ((1LL << FRAC_WIDTH) - 1))
 
 #define FIX_ONE (1LL << FRAC_WIDTH)
 #define FIX_ONE_HALF (1LL << (FRAC_WIDTH - 1))
+#define FIX_MAX (fix64)((1ULL << 63) - 1)                       // full fraction, max value integer
+#define FIX_MIN (fix64)((1ULL << 63) | (1LL << FRAC_WIDTH) - 1) // full fraction, min value integer
 
 #define FIX_2_INT(fix) (((fix) >> FRAC_WIDTH)) // non rounding
 #define FIX_2_FLOAT(fix) ((float) (fix) / (1LL << FRAC_WIDTH))
@@ -31,11 +33,11 @@ static inline fix64 fix_mult(const fix64 fix1, const fix64 fix2) { // multiply 2
     
     return (((uint64_t) f1 * f2) >> 32) 
         + ((int64_t)(i1 * i2) << 32)
-        + (int64_t)i1 * f2
-        + (int64_t)i2 * f1;
+        + i1 * f2
+        + i2 * f1;
 }
 
-static inline int32_t fix_mult_i(const fix64 fix1, const fix64 fix2) { // multiply two fixes, return integer part. saves time not calculating decimal * decimal
+static inline int32_t fix_mult_i64(const fix64 fix1, const fix64 fix2) { // multiply two fixes, return integer part. saves time not calculating decimal * decimal
     fix64 i1 = GET_INT(fix1);
     fix64 f1 = GET_FRAC(fix1);
     fix64 i2 = GET_INT(fix2);
@@ -43,6 +45,10 @@ static inline int32_t fix_mult_i(const fix64 fix1, const fix64 fix2) { // multip
     
     return (int32_t)i1 * (int32_t)i2 
         + (int32_t)((i1 * f2 + i2 * f1) >> 32);
+}
+
+static inline int32_t fix_mult_i32(const fix64 fix1, const fix64 fix2) { // save more time by "casting" to 16.16 fixed point. Loss of precision, obviously
+    return ((fix1 >> 16) * (fix2 >> 16)) >> 32;
 }
 
 // assumes non zero denominators
