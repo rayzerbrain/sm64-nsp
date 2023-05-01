@@ -13,7 +13,7 @@ typedef int64_t fix64;
 #define FIX_ONE (1LL << FRAC_WIDTH)
 #define FIX_ONE_HALF (1LL << (FRAC_WIDTH - 1))
 #define FIX_MAX (fix64)((1ULL << 63) - 1)                       // full fraction, max value integer
-#define FIX_MIN (fix64)((1ULL << 63) | (1LL << FRAC_WIDTH) - 1) // full fraction, min value integer
+#define FIX_MIN (fix64)(1ULL << 63) // full fraction, min value integer
 
 #define FIX_2_INT(fix) (((fix) >> FRAC_WIDTH)) // non rounding
 #define FIX_2_FLOAT(fix) ((float) (fix) / (1LL << FRAC_WIDTH))

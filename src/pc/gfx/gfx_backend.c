@@ -502,6 +502,7 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
         src.r = mult_tab[src.r][a] + mult_tab[dst.r][ia];
         src.g = mult_tab[src.g][a] + mult_tab[dst.g][ia];
         src.b = mult_tab[src.b][a] + mult_tab[dst.b][ia];
+
         gfx_output[idx] = src.c;
         z_buffer[idx] = z;
     }
@@ -530,7 +531,7 @@ static void draw_pixel_blend_edge_zwrite(const int idx, const uint16_t z, Color4
             uz = u16clamp(FIX_2_INT(p[2] * 65535 + z_offset)); \
             if (!z_test || uz <= z_buffer[idx]) { \
                 /* Improve efficiency here? w is 1 very often */ \
-                w = p[3] == FIX_ONE ? FIX_ONE : FIX_INV(p[3]); /* the combiner will multiply by w any props it needs to persp correct */ \
+                w = p[3] == FIX_ONE ? FIX_ONE : fix_div_s(FIX_ONE, p[3]); /*  the combiner will multiply by w any props it needs to persp correct */ \
                 draw_fn(idx, uz, cur_shader->combine(w, p + 4)); \
             } \
             for (i = 2; i < nprops; ++i) p[i] += dp[i].x; \

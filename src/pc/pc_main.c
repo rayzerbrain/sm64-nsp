@@ -62,8 +62,7 @@ static void save_config(void) {
     configfile_save(CONFIG_FILE);
 }
 
-static void on_fullscreen_changed(bool is_now_fullscreen) {
-    configFullscreen = is_now_fullscreen;
+static void on_fullscreen_changed(UNUSED bool is_now_fullscreen) {
 }
 
 int main(UNUSED int argc, char *argv[]) {
@@ -79,7 +78,7 @@ int main(UNUSED int argc, char *argv[]) {
     wm_api = &gfx_nsp_api;
     rendering_api = &gfx_soft_api;
 
-    gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", configFullscreen);
+    gfx_init(wm_api, rendering_api, "Super Mario 64 PC-Port", true);
     atexit(gfx_shutdown);
 
     thread5_game_loop(NULL);

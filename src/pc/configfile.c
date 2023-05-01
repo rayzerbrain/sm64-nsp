@@ -29,10 +29,8 @@ struct ConfigOption {
 /*
  *Config options and default values
  */
-bool configFullscreen            = false;
 bool configDrawSky               = true;
 bool configFiltering             = false;
-bool configEnableSound           = false;
 bool configEnableFog             = false;
 bool config120pMode              = true;
 unsigned int configFrameskip     = 3; // worst case scenario, renders 1 out of every (X + 1) frames
@@ -71,11 +69,9 @@ unsigned int configKeyStickRight = 0x20;
 #endif
 
 static const struct ConfigOption options[] = {
-    {.name = "fullscreen",        .type = CONFIG_TYPE_BOOL, .boolValue = &configFullscreen},
     {.name = "draw_sky",          .type = CONFIG_TYPE_BOOL, .boolValue = &configDrawSky},
     {.name = "texture_filtering", .type = CONFIG_TYPE_BOOL, .boolValue = &configFiltering},
     {.name = "enable_fog",        .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableFog},
-    {.name = "enable_sound",      .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableSound},
     {.name = "enable_120p_mode",  .type = CONFIG_TYPE_BOOL, .boolValue = &config120pMode},
     {.name = "frameskip",         .type = CONFIG_TYPE_UINT, .uintValue = &configFrameskip},
     {.name = "key_a",             .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},

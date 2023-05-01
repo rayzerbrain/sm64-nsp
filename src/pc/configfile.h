@@ -3,10 +3,8 @@
 
 #include <stdbool.h>
 
-extern bool         configFullscreen;
 extern bool         configDrawSky;
 extern bool         configFiltering;
-extern bool         configEnableSound;
 extern bool         configEnableFog;
 extern bool			config120pMode;
 extern unsigned int configFrameskip;
