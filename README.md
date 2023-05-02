@@ -11,6 +11,7 @@ It is fully playable, albeit painfully slow, especially on a CX I. Play at your 
 
 See [Installing](./INSTALLING.md)
 
+
 ## Performance
 
 
@@ -22,6 +23,7 @@ Performance will likely never be that great, but here are a few ways to maximize
  - Find the right `frameskip` value for you. The default value is 4, but you can increase it at the cost of precise maneuvering.
 
 With base configuration, you should only expect around 4 FPS on average on a CX II.
+
 
 ## Controls
 
@@ -38,9 +40,11 @@ C Buttons (up, down left, right): 8, 2, 4, 6, accordingly
 
 Escape exits the game, and pressing Control brings up a profiling screen, which shows your current FPS.
 
+
 ## Contributing
 
 Contributions are welcome, especially if you can find any areas of performance improvement.
+
 
 ## Credits
  - https://github.com/fgsfdsfgs/sm64-port: Original fork; Software renderer adapted from here
