@@ -11,13 +11,12 @@ It is fully playable, albeit painfully slow, especially on a CX I. Play at your 
 
 See [Installing](./INSTALLING.md)
 
-
 ## Performance
 
 
 Performance will likely never be that great, but here are a few ways to maximize playability:
 
- - Make sure the config option `enable_120p_mode` is set to `true`, however, this will quarter resolution and make most text unreadable
+ - Make sure the config option `enable_120p_mode` is set to `true`, which is the default. However, this will quarter resolution and make most text unreadable.
  - Set the config option `draw_sky` to `false` to avoid drawing the skybox (you can pretend it's always nighttime)
  - Set `enable_fog` to `false` to disable fog (this is the default, it's never actually been tested when it's on, anyway)
  - Find the right `frameskip` value for you. The default value is 4, but you can increase it at the cost of precise maneuvering.
@@ -32,18 +31,19 @@ Controls cannot be edited via the config file, if you need to change the control
 The default controls are shown on launch, they are:
 
 Start: enter
+
 A Button: menu
+
+
 B Button: del
+
 Z Trigger: doc
+
 Analog Controls: Touchpad
+
 C Buttons (up, down left, right): 8, 2, 4, 6, accordingly
 
 Escape exits the game, and pressing Control brings up a profiling screen, which shows your current FPS.
-
-
-## Contributing
-
-Contributions are welcome, especially if you can find any areas of performance improvement.
 
 
 ## Credits
