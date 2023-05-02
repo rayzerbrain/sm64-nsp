@@ -27,7 +27,9 @@ In an appropriate directory, run: `git clone https://github.com/rayzerbrain/sm64
 
 `cd sm64-nsp`
 
-You should be in the root level of the respository. Run `make` to compile, or `make -j4` to possibly build faster. Wait for it to complete.
+You should be in the root level of the respository. Place your `.z64` rom in this directory so the asssets can be extracted from it.
+
+Run `make` to compile, or `make -j4` to possibly build faster. Wait for it to complete.
 
 Your executable (`sm64.us.f3dex2.tns`) should be located at `./build/us_nsp/`
 
