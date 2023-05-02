@@ -27,7 +27,7 @@ In an appropriate directory, run: `git clone https://github.com/rayzerbrain/sm64
 
 `cd sm64-nsp`
 
-You should be in the root level of the respository. Place your `.z64` rom in this directory so the asssets can be extracted from it.
+You should be in the root level of the respository. Place your `.z64` rom in this directory so the assets can be extracted from it.
 
 Run `make` to compile, or `make -j4` to possibly build faster. Wait for it to complete.
 
