@@ -1,6 +1,6 @@
 # Super Mario 64 Nspire Port
 
-This is a port of SM64 to the TI-nspire CX lineup. 
+This is a port of SM64 to the TI-Nspire CX lineup. 
 
 It is fully playable, albeit painfully slow, especially on a CX I. Play at your own risk of dying of old age.
 
@@ -51,4 +51,4 @@ Escape exits the game, and pressing Control brings up a profiling screen, which 
  - https://github.com/ndless-nspire/Ndless: Nspire compile and runtime capabilities
  - https://github.com/nspire-emus/firebird: Emulator used extensively for testing and debugging purposes
  - https://github.com/Pi-Boy-314: Project idea
- - The almighty God from whom all blessings flow
+ - The almighty God from Whom all blessings flow
