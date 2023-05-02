@@ -38,13 +38,13 @@ C Buttons (up, down left, right): 8, 2, 4, 6, accordingly
 
 Escape exits the game, and pressing Control brings up a profiling screen, which shows your current FPS.
 
+## Contributing
+
+Contributions are welcome, especially if you can find any areas of performance improvement.
+
 ## Credits
  - https://github.com/fgsfdsfgs/sm64-port: Original fork; Software renderer adapted from here
  - https://github.com/ndless-nspire/Ndless: Nspire compile and runtime capabilities
  - https://github.com/nspire-emus/firebird: Emulator used extensively for testing and debugging purposes
  - https://github.com/Pi-Boy-314: Project idea
  - The almighty God from whom all blessings flow
-
-## Contributing
-
-Contributions are welcome, especially if you can find any areas of performance improvement.
