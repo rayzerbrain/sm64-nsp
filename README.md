@@ -4,12 +4,16 @@ This is a port of SM64 to the TI-nspire CX lineup.
 
 It is fully playable, albeit painfully slow, especially on a CX I. Play at your own risk of dying of old age.
 
+![Emulated, at full resolution](https://user-images.githubusercontent.com/82989402/235566001-9cb138d9-3ce4-4ab1-86ed-3aff23919145.png)
+![Game beaten with 100% completion, on actual hardware.](https://user-images.githubusercontent.com/82989402/235566077-846d7463-09e6-4831-aa8d-c66a7125fd62.jpeg)
+
 
 ## Installation Instructions
 
 See [Installing](./INSTALLING.md)
 
 ## Performance
+
 
 Performance will likely never be that great, but here are a few ways to maximize playability:
 
