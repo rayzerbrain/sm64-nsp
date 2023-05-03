@@ -13,25 +13,39 @@ Ensure you are able to access a Ubuntu-like CLI, this will be easiest to use goi
 
 Windows users can use WSL, which is what I've used, to achieve the same goal. You may want to run `cd ~` and `explorer.exe .` to get your bearings.
 
-Ensure you have the needed base dependencies: `sudo apt install -y git build-essential pkg-config libusb-1.0-0-dev libsdl2-dev`
+Ensure you have the needed base dependencies: `sudo apt-get install -y git build-essential pkg-config libusb-1.0-0-dev libsdl2-dev binutils libgmp-dev libmpfr-dev libmpc-dev zlib boost-program-options wget`
 
 ## Step 2 - Toolchain
 
-Next you will need to install the ndless toolchain, to get the needed compilation tools. Use [this guide](https://hackspire.org/index.php/C_and_assembly_development_introduction) as a reference. You can stop when you reach the <i>2-minute tutorial</i> section
+Next you will need to install the ndless toolchain, to get the needed compilation tools. I've adapted the required commands from [this guide](https://hackspire.org/index.php/C_and_assembly_development_introduction)
+
+```
+git clone --recursive https://github.com/ndless-nspire/Ndless.git
+cd Ndless/ndless-sdk/toolchain/
+./build_toolchain.sh
+cd ../..
+export PATH=$PATH:$(pwd)/ndless-sdk/toolchain/install/bin:$(pwd)/ndless-sdk/bin
+make
+```
+
+Note that the changes made to your path are temporary and will only exist for your current login session. To make them permanent, you'll have to put the same command with absolute paths in a file such as your `~/.bashrc`
 
 ## Step 3 - Compilation
 
 Once you have all the needed tools, you will compile the executable.
 
-In an appropriate directory, run: `git clone https://github.com/rayzerbrain/sm64-nsp`
+Change to an appropiate directory (`cd ~`)
+Run: `git clone https://github.com/rayzerbrain/sm64-nsp`
 
 `cd sm64-nsp`
 
-You should be in the root level of the respository. Place your `.z64` rom in this directory so the assets can be extracted from it.
+You should be in the root level of the respository. Place your `.z64` rom file in this directory.
 
 Run `make` to compile, or `make -j4` to possibly build faster. Wait for it to complete.
 
-Your executable (`sm64.us.f3dex2.tns`) should be located at `./build/us_nsp/`
+If needed, specify the version with the `VERSION` option, e.g. `make VERSION=jp`. Options are `us` (default), `jp`, `eu`, and `sh` 
+
+Your executable (`sm64.<VERSION>.f3dex2.tns`) should be located at `./build/<VERSION>_nsp/`
 
 ## Step 4 - Installation
 
