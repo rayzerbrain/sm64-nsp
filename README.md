@@ -47,8 +47,12 @@ Escape exits the game, and pressing Control brings up a profiling screen, which 
 
 
 ## Credits
+ - https://github.com/n64decomp/sm64: Original decompilation
  - https://github.com/fgsfdsfgs/sm64-port: Original fork; Software renderer adapted from here
  - https://github.com/ndless-nspire/Ndless: Nspire compile and runtime capabilities
  - https://github.com/nspire-emus/firebird: Emulator used extensively for testing and debugging purposes
  - https://github.com/Pi-Boy-314: Project idea
  - The almighty God from Whom all blessings flow
+
+
+These people did all the hard work; I mostly just put the pieces together. Go check out their stuff too.
