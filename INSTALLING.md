@@ -13,7 +13,11 @@ Ensure you are able to access a Ubuntu-like CLI, this will be easiest to use goi
 
 Windows users can use WSL, which is what I've used, to achieve the same goal. You may want to run `cd ~` and `explorer.exe .` to get your bearings.
 
-Ensure you have the needed base dependencies: `sudo apt-get install -y git build-essential pkg-config libusb-1.0-0-dev libsdl2-dev binutils libgmp-dev libmpfr-dev libmpc-dev zlib boost-program-options wget`
+Ensure you have the needed base dependencies: 
+
+`sudo apt-get update`
+
+`sudo apt-get install -y git gcc build-essential pkg-config binutils wget python3-dev libgmp-dev libmpfr-dev libmpc-dev zlib1g-dev libboost-all-dev texinfo php`
 
 ## Step 2 - Toolchain
 
