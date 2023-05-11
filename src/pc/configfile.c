@@ -33,7 +33,7 @@ bool configDrawSky               = true;
 bool configFiltering             = false;
 bool configEnableFog             = false;
 bool config120pMode              = true;
-unsigned int configFrameskip     = 3; // worst case scenario, renders 1 out of every (X + 1) frames
+unsigned int configFrameskip     = 4; // worst case scenario, renders 1 out of every (X + 1) frames
 
 // Keyboard mappings (scancode values)
 #ifdef TARGET_DOS
