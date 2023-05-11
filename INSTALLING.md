@@ -17,11 +17,15 @@ Ensure you have the needed base dependencies:
 
 `sudo apt-get update`
 
+`sudo apt-get upgrade`
+
 `sudo apt-get install -y git gcc build-essential pkg-config binutils wget python3-dev libgmp-dev libmpfr-dev libmpc-dev zlib1g-dev libboost-all-dev texinfo php`
 
 ## Step 2 - Toolchain
 
-Next you will need to install the ndless toolchain, to get the needed compilation tools. I've adapted the required commands from [this guide](https://hackspire.org/index.php/C_and_assembly_development_introduction)
+Next you will need to install the ndless toolchain, to get the needed compilation tools. I've adapted the required commands from [this guide](https://hackspire.org/index.php/C_and_assembly_development_introduction).
+
+Building the toolchain may take a while, be prepared to have to wait for several minutes.
 
 ```
 git clone --recursive https://github.com/ndless-nspire/Ndless.git
